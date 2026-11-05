@@ -21,6 +21,14 @@ def health():
     })
 
 
+@app.route("/status")
+def status():
+    return jsonify({
+        "total_ads": 50,
+        "active_ads": 41,
+        "closed_ads": 9
+    })
+  
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
