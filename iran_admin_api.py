@@ -67,7 +67,7 @@ def sync_stats():
     if data["active_ads"] + data["closed_ads"] != data["total_ads"]:
         return jsonify({"error": "Inconsistent statistics"}), 400
 
-        global latest_stats
+    global latest_stats
 
     latest_stats = {
         "total_ads": data["total_ads"],
