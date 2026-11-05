@@ -6,7 +6,7 @@ import hmac
 
 
 app = Flask(__name__)
-
+latest_stats = None
 
 @app.route("/")
 def home():
@@ -26,11 +26,13 @@ def health():
 
 @app.route("/status")
 def status():
-    return jsonify({
-        "total_ads": 50,
-        "active_ads": 41,
-        "closed_ads": 9
-    })
+    if latest_stats is None:
+        return jsonify({
+            "status": "waiting",
+            "message": "Waiting for real bot statistics"
+        }), 503
+
+    return jsonify(latest_stats)
   
 @app.after_request
 def allow_dashboard(response):
@@ -65,7 +67,15 @@ def sync_stats():
     if data["active_ads"] + data["closed_ads"] != data["total_ads"]:
         return jsonify({"error": "Inconsistent statistics"}), 400
 
-    return jsonify({"status": "validated"})
+        global latest_stats
+
+    latest_stats = {
+        "total_ads": data["total_ads"],
+        "active_ads": data["active_ads"],
+        "closed_ads": data["closed_ads"]
+    }
+
+    return jsonify({"status": "saved"})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
