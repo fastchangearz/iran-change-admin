@@ -76,7 +76,14 @@ def sync_stats():
     }
 
     return jsonify({"status": "saved"})
+latest_ads = []
 
+@app.route("/ads")
+def get_ads():
+    return jsonify({
+        "ads": latest_ads,
+        "count": len(latest_ads)
+    })
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
