@@ -69,11 +69,45 @@ def sync_stats():
 
     global latest_stats
 
-    latest_stats = {
-        "total_ads": data["total_ads"],
-        "active_ads": data["active_ads"],
-        "closed_ads": data["closed_ads"]
-    }
+    
+latest_ads = []
+
+@app.route("/ads")
+def get_ads():
+    return jsonify({
+        "ads": latest_ads,
+        "count": len(latest_ads)
+    })
+
+@app.route("/sync-ads", methods=["POST"])
+def sync_ads():
+    secret = os.environ.get("IRAN_CHANGE_SYNC_KEY")
+    supplied = request.headers.get("X-Sync-Key", "")
+
+    if not secret:
+        return jsonify({"error": "Server not configured"}), 503
+
+    if not hmac.compare_digest(supplied, secret):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    ads = data.get("ads")
+
+    if not isinstance(ads, list):
+        return jsonify({"error": "Invalid ads"}), 400
+
+    global latest_ads
+    latest_ads = ads
+
+    return jsonify({
+        "status": "saved",
+        "count": len(latest_ads)
+    })
+
 
     return jsonify({"status": "saved"})
 latest_ads = []
