@@ -1,12 +1,13 @@
-7
+
 import os
-
-from flask import Flask, jsonify, request
 import hmac
-
+from flask import Flask, jsonify, request
 
 app = Flask(__name__)
+
 latest_stats = None
+latest_ads = []
+
 
 @app.route("/")
 def home():
@@ -19,9 +20,15 @@ def home():
 
 @app.route("/health")
 def health():
-    return jsonify({
-        "status": "ok"
-    })
+    return jsonify({"status": "ok"})
+
+
+@app.after_request
+def allow_dashboard(response):
+    response.headers["Access-Control-Allow-Origin"] = (
+        "https://fastchangearz.github.io"
+    )
+    return response
 
 
 @app.route("/status")
@@ -33,20 +40,17 @@ def status():
         }), 503
 
     return jsonify(latest_stats)
-  
-@app.after_request
-def allow_dashboard(response):
-    response.headers["Access-Control-Allow-Origin"] = "https://fastchangearz.github.io"
-    return response
+
 
 @app.route("/sync-stats", methods=["POST"])
 def sync_stats():
+    global latest_stats
+
     secret = os.environ.get("IRAN_CHANGE_SYNC_KEY")
+    supplied = request.headers.get("X-Sync-Key", "")
 
     if not secret:
         return jsonify({"error": "Server not configured"}), 503
-
-    supplied = request.headers.get("X-Sync-Key", "")
 
     if not hmac.compare_digest(supplied, secret):
         return jsonify({"error": "Unauthorized"}), 401
@@ -67,10 +71,14 @@ def sync_stats():
     if data["active_ads"] + data["closed_ads"] != data["total_ads"]:
         return jsonify({"error": "Inconsistent statistics"}), 400
 
-    global latest_stats
+    latest_stats = {
+        "total_ads": data["total_ads"],
+        "active_ads": data["active_ads"],
+        "closed_ads": data["closed_ads"]
+    }
 
-    
-latest_ads = []
+    return jsonify({"status": "saved"})
+
 
 @app.route("/ads")
 def get_ads():
@@ -79,8 +87,11 @@ def get_ads():
         "count": len(latest_ads)
     })
 
+
 @app.route("/sync-ads", methods=["POST"])
 def sync_ads():
+    global latest_ads
+
     secret = os.environ.get("IRAN_CHANGE_SYNC_KEY")
     supplied = request.headers.get("X-Sync-Key", "")
 
@@ -100,7 +111,6 @@ def sync_ads():
     if not isinstance(ads, list):
         return jsonify({"error": "Invalid ads"}), 400
 
-    global latest_ads
     latest_ads = ads
 
     return jsonify({
@@ -109,15 +119,6 @@ def sync_ads():
     })
 
 
-    return jsonify({"status": "saved"})
-latest_ads = []
-
-@app.route("/ads")
-def get_ads():
-    return jsonify({
-        "ads": latest_ads,
-        "count": len(latest_ads)
-    })
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
