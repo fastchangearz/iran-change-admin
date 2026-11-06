@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 latest_stats = None
 latest_ads = []
-
+latest_offers = []
 
 @app.route("/")
 def home():
@@ -118,6 +118,60 @@ def sync_ads():
         "count": len(latest_ads)
     })
 
+
+@app.route("/offers")
+def get_offers():
+    return jsonify({
+        "offers": latest_offers,
+        "count": len(latest_offers)
+    })
+
+
+@app.route("/sync-offers", methods=["POST"])
+def sync_offers():
+    global latest_offers
+
+    secret = os.environ.get("IRAN_CHANGE_SYNC_KEY")
+    supplied = request.headers.get("X-Sync-Key", "")
+
+    if not secret:
+        return jsonify({"error": "Server not configured"}), 503
+
+    if not hmac.compare_digest(supplied, secret):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    offers = data.get("offers")
+
+    if not isinstance(offers, list):
+        return jsonify({"error": "Invalid offers"}), 400
+
+    allowed = {
+        "offer_id", "ad_id", "proposed_price",
+        "status", "created_at"
+    }
+
+    cleaned = []
+
+    for offer in offers:
+        if not isinstance(offer, dict):
+            return jsonify({"error": "Invalid offer item"}), 400
+
+        cleaned.append({
+            key: offer.get(key)
+            for key in allowed
+        })
+
+    latest_offers = cleaned
+
+    return jsonify({
+        "status": "saved",
+        "count": len(latest_offers)
+    })
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
