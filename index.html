@@ -7,7 +7,13 @@ const API='https://iran-change-admin.onrender.com';
 let ads=[],section='خانه',selected=null,filter='',loaded=false;
 const sections=['خانه','آگهی‌ها','کانال‌ها','پیشنهادها','مکالمات','توافق‌ها','مدارک','امور مالی','فعالیت‌ها','گزارش‌ها'];
 const el=id=>document.getElementById(id);
-const fmt=n=>Number(n||0).toLocaleString('fa-IR');
+const fmt=n=>{
+  if(n===null||n===undefined||String(n).trim()==='')return '—';
+  const digits=String(n).trim().replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-1776)).replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632));
+  const clean=digits.replace(/[٬،,\s\u200c]/g,'').replace(/٫/g,'.');
+  const value=Number(clean);
+  return Number.isFinite(value)?value.toLocaleString('fa-IR',{maximumFractionDigits:8}):esc(n);
+};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const panel=(t,c)=>'<section class="panel"><div class="head"><h2>'+t+'</h2></div>'+c+'</section>';
 const row=(l,r)=>'<div class="row"><div>'+l+'</div><div>'+r+'</div></div>';
