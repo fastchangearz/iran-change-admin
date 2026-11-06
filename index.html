@@ -1,37 +1,96 @@
 <!doctype html>
-<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ایران چنج | مدیریت</title><link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#080e1e"><link rel="icon" href="./icon-192.png"><style>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ایران چنج | مدیریت</title><link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#080e1e"><link rel="icon" href="./icon-192.png">
+<style>
 :root{--bg:#080e1e;--panel:#121d33;--gold:#e9c579;--txt:#edf3ff;--muted:#9cacc8;--line:#2b3b58}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,#1b3155,transparent 45%),var(--bg);color:var(--txt);font:14px Tahoma,Arial,sans-serif}button,input{font:inherit}.shell{max-width:1180px;margin:auto;padding:18px 16px 90px}.top,.head,.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.top{margin-bottom:20px}.brand{font-size:22px;font-weight:800;color:var(--gold)}.muted,.sub{color:var(--muted);font-size:12px;line-height:1.9}.pill,.tag{border-radius:99px;padding:7px 10px;background:#173e35;color:#8df6c9;font-size:11px}.tag{background:#293b5d;color:#c6d8f7}.good{background:#164637;color:#80f1bc}.bad{background:#512c3b;color:#ffacb9}.hero{background:linear-gradient(125deg,#243a61,#101a30);border:1px solid #456085;border-radius:22px;padding:22px;margin-bottom:18px}.hero h1{font-size:21px;margin:0 0 8px}.hero p{color:#bdcce3;line-height:2;margin:0}.notice{padding:12px;background:#3b2d1e;border:1px solid #6d5530;border-radius:12px;color:#ffe1a1;line-height:1.9;margin:12px 0}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:15px 0}.stat,.panel{border:1px solid var(--line);background:#121d33;border-radius:17px;padding:16px}.stat b{font-size:26px;color:var(--gold);display:block;margin:7px 0}.stat small{color:var(--muted)}.panel{margin-bottom:12px}.head{margin-bottom:12px}.head h2{font-size:18px;margin:0}.nav{display:flex;gap:8px;overflow:auto;padding:5px 0 15px}.nav button,.btn{border:1px solid #344b6c;background:#1a2b49;color:var(--txt);border-radius:12px;padding:11px 14px;white-space:nowrap;cursor:pointer}.nav button.active,.btn.primary{background:linear-gradient(130deg,#b58b45,#f2d38e);border:0;color:#182038;font-weight:bold}.row{padding:13px 0;border-bottom:1px solid var(--line)}.row:last-child{border:0}.item{cursor:pointer}.item:hover{background:#213251}.value{color:var(--gold);font-weight:bold}.search{width:100%;padding:13px 15px;border-radius:12px;border:1px solid #405273;background:#0c1629;color:white;margin-bottom:12px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.kv{background:#0e1a2e;border:1px solid #2c3e59;padding:12px;border-radius:12px}.kv span{display:block;color:var(--muted);font-size:11px;margin-bottom:7px}.empty{padding:18px;color:var(--muted);line-height:2}.foot{position:fixed;bottom:0;left:0;right:0;background:#0b1425ef;border-top:1px solid #34425d;padding:10px;text-align:center;color:#c6a66e;font-size:11px}@media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.hero{padding:17px}.shell{padding:14px 12px 95px}}
-</style></head><body><div class="shell"><header class="top"><div><div class="brand">✦ IRAN CHANGE</div><div class="sub">مرکز فرماندهی و مدیریت معاملات</div></div><span class="pill" id="livePill">● در حال اتصال</span></header><div class="hero"><h1>همه ایران چنج، در یک پنل ✨</h1><p>آگهی‌های واقعی، کانال‌ها و بخش‌های مدیریت معاملات — یکجا و مرتب.</p></div><div class="notice">فهرست آگهی‌ها واقعی است؛ پیشنهادها، مکالمات، توافق‌ها، مدارک و امور مالی هنوز به ربات متصل نشده‌اند. دکمه مدیریتی واقعی در این نسخه اجرا نمی‌شود.</div><section class="panel"><div class="head"><h2>🔌 اتصال به سرور</h2><span class="tag" id="apiState">در حال اتصال</span></div><p id="apiResult" class="muted">در حال دریافت آگهی‌ها...</p><button class="btn primary" onclick="refreshAll()">🔄 به‌روزرسانی اطلاعات</button></section><div class="stats"><div class="stat"><small>کل آگهی‌ها</small><b id="total">—</b></div><div class="stat"><small>فعال</small><b id="active">—</b></div><div class="stat"><small>غیرفعال</small><b id="closed">—</b></div><div class="stat"><small>اتصال</small><b id="connected" style="font-size:18px">در انتظار</b></div></div><nav class="nav" id="nav"></nav><main id="main"></main></div><div class="foot">IRAN CHANGE • اطلاعات آگهی‌ها از Render</div>
+</style>
+</head>
+<body>
+<div class="shell"><header class="top"><div><div class="brand">✦ IRAN CHANGE</div><div class="sub">مرکز فرماندهی و مدیریت معاملات</div></div><span class="pill" id="livePill">● در حال اتصال</span></header>
+<div class="hero"><h1>همه ایران چنج، در یک پنل ✨</h1><p>آگهی‌های واقعی، کانال‌ها و بخش‌های مدیریت معاملات — یکجا و مرتب.</p></div>
+<div class="notice">فهرست آگهی‌ها از اطلاعات همگام‌سازی‌شده ربات دریافت می‌شود؛ پیشنهادها، مکالمات، توافق‌ها، مدارک و امور مالی هنوز به ربات متصل نشده‌اند. دکمه مدیریتی واقعی در این نسخه اجرا نمی‌شود.</div>
+<section class="panel"><div class="head"><h2>🔌 اتصال به سرور</h2><span class="tag" id="apiState">در حال اتصال</span></div><p id="apiResult" class="muted">در حال دریافت آگهی‌ها...</p><button class="btn primary" onclick="refreshAll()">🔄 به‌روزرسانی اطلاعات</button></section>
+<div class="stats"><div class="stat"><small>کل آگهی‌ها</small><b id="total">—</b></div><div class="stat"><small>فعال</small><b id="active">—</b></div><div class="stat"><small>غیرفعال</small><b id="closed">—</b></div><div class="stat"><small>اتصال</small><b id="connected" style="font-size:18px">در انتظار</b></div></div>
+<nav class="nav" id="nav"></nav><main id="main"></main></div><div class="foot">IRAN CHANGE • اطلاعات آگهی‌ها از Render</div>
 <script>
+'use strict';
 const API='https://iran-change-admin.onrender.com';
 let ads=[],section='خانه',selected=null,filter='',loaded=false;
 const sections=['خانه','آگهی‌ها','کانال‌ها','پیشنهادها','مکالمات','توافق‌ها','مدارک','امور مالی','فعالیت‌ها','گزارش‌ها'];
 const el=id=>document.getElementById(id);
-const fmt=n=>{
-  if(n===null||n===undefined||String(n).trim()==='')return '—';
-  const digits=String(n).trim().replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-1776)).replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-1632));
-  const clean=digits.replace(/[٬،,\s\u200c]/g,'').replace(/٫/g,'.');
-  const value=Number(clean);
-  return Number.isFinite(value)?value.toLocaleString('fa-IR',{maximumFractionDigits:8}):esc(n);
-};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Normalize Persian, Arabic and ASCII digits and common grouping separators.
+function parseLocalizedNumber(input){
+  if(input===null||input===undefined)return null;
+  let s=String(input).trim();
+  if(!s)return null;
+  s=s.replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-0x06F0))
+     .replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x0660))
+     .replace(/[٬،,\s\u200c\u200e\u200f\u00a0]/g,'')
+     .replace(/٫/g,'.');
+  if(!/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(s))return null;
+  const n=Number(s);
+  return Number.isFinite(n)?n:null;
+}
+function fmt(n){
+  if(n===null||n===undefined||String(n).trim()==='')return '—';
+  const value=parseLocalizedNumber(n);
+  return value===null?esc(n):value.toLocaleString('fa-IR',{maximumFractionDigits:8});
+}
 const panel=(t,c)=>'<section class="panel"><div class="head"><h2>'+t+'</h2></div>'+c+'</section>';
 const row=(l,r)=>'<div class="row"><div>'+l+'</div><div>'+r+'</div></div>';
 const badge=s=>'<span class="tag '+(s==='فعال'?'good':s==='بسته'?'bad':'')+'">'+esc(s)+'</span>';
-function normalize(a){const currency=String(a.currency??''),trade=String(a.trade_type??''),status=String(a.status??'');return {id:Number(a.ad_id),type:/sell|فروش/i.test(trade)?'فروش':/buy|خرید/i.test(trade)?'خرید':trade,currency,amount:a.amount,price:a.price,method:String(a.method??''),country:String(a.country??''),created:String(a.created_at??''),channel:/EUR|یورو|euro/i.test(currency)?'یورو':/USD|دلار|dollar/i.test(currency)?'دلار':'سایر',status:status.toLowerCase()==='active'?'فعال':status?'بسته':'نامشخص'};}
+function normalize(a){
+  const currency=String(a.currency??''),trade=String(a.trade_type??''),status=String(a.status??'');
+  return {id:Number(a.ad_id),type:/sell|فروش/i.test(trade)?'فروش':/buy|خرید/i.test(trade)?'خرید':trade,
+    currency,amount:a.amount,price:a.price,method:String(a.method??''),country:String(a.country??''),created:String(a.created_at??''),
+    channel:/EUR|یورو|euro/i.test(currency)?'یورو':/USD|دلار آمریکا|dollar/i.test(currency)?'دلار':'سایر',
+    status:status.toLowerCase()==='active'?'فعال':status.toLowerCase()==='closed'?'بسته':status||'نامشخص'};
+}
 function adRows(items){return items.length?items.map(a=>'<div class="row item" data-ad="'+a.id+'"><div><b>آگهی #'+fmt(a.id)+'</b><div class="muted">'+esc(a.type)+' • '+fmt(a.amount)+' '+esc(a.currency)+' • '+esc(a.method)+'</div><div class="muted">'+esc(a.country)+'</div></div><div style="text-align:left"><div class="value">'+fmt(a.price)+' تومان</div><div style="margin-top:8px">'+badge(a.status)+'</div></div></div>').join(''):'<div class="empty">آگهی‌ای برای نمایش وجود ندارد.</div>';}
 function go(s){section=s;render();window.scrollTo(0,0)}
 function openAd(id){selected=id;go('پرونده')}
 function renderList(){const q=filter.trim().toLowerCase();el('list').innerHTML=adRows(ads.filter(a=>[a.id,a.type,a.currency,a.method,a.country,a.status].some(v=>String(v).toLowerCase().includes(q))));}
-function render(){el('nav').innerHTML=sections.map(s=>'<button data-section="'+esc(s)+'" class="'+(section===s?'active':'')+'">'+esc(s)+'</button>').join('');let out='';
-if(section==='خانه'){out=panel('📌 آخرین آگهی‌های واقعی',loaded?adRows(ads.slice(0,5)):'<div class="empty">در حال دریافت...</div>')+panel('📊 وضعیت آگهی‌ها',row('کل آگهی‌ها',fmt(ads.length))+row('فعال',fmt(ads.filter(a=>a.status==='فعال').length))+row('غیرفعال',fmt(ads.filter(a=>a.status==='بسته').length)));}
-else if(section==='آگهی‌ها'){out=panel('📣 همه آگهی‌های واقعی','<input id="adSearch" class="search" placeholder="جستجوی شماره، ارز، کشور یا روش انتقال..." value="'+esc(filter)+'"><div id="list">'+adRows(ads)+'</div>');}
-else if(section==='کانال‌ها'){out=panel('📡 کانال‌های تلگرام',row('🇪🇺 کانال یورو • @FastChangeEurope',fmt(ads.filter(a=>a.channel==='یورو').length)+' آگهی')+row('🇺🇸 کانال دلار • @FastChangeDollar',fmt(ads.filter(a=>a.channel==='دلار').length)+' آگهی')+row('💬 گروه دیدگاه‌ها','@FastChangeArzGroup'))+panel('آگهی‌های یورو',adRows(ads.filter(a=>a.channel==='یورو')))+panel('آگهی‌های دلار',adRows(ads.filter(a=>a.channel==='دلار')));}
-else if(section==='گزارش‌ها'){out=panel('📊 گزارش آگهی‌ها',row('کل آگهی‌ها',fmt(ads.length))+row('فعال',fmt(ads.filter(a=>a.status==='فعال').length))+row('غیرفعال',fmt(ads.filter(a=>a.status==='بسته').length))+row('یورو',fmt(ads.filter(a=>a.channel==='یورو').length))+row('دلار',fmt(ads.filter(a=>a.channel==='دلار').length)));}
-else if(section==='پرونده'){const a=ads.find(x=>x.id===selected);out=a?panel('📄 پرونده آگهی #'+fmt(a.id),'<div class="grid">'+[['نوع و مقدار',esc(a.type)+' • '+fmt(a.amount)+' '+esc(a.currency)],['قیمت',fmt(a.price)+' تومان'],['روش انتقال',esc(a.method)],['کشور',esc(a.country||'ثبت نشده')],['وضعیت',badge(a.status)],['تاریخ ثبت',esc(a.created||'ثبت نشده')]].map(x=>'<div class="kv"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><div class="notice">پیشنهادها، مکالمات و دکمه‌های مدیریت این پرونده هنوز متصل نشده‌اند.</div><button class="btn primary" data-section="آگهی‌ها">بازگشت به آگهی‌ها</button>'):panel('پرونده','آگهی پیدا نشد.');}
-else{out=panel('⏳ '+esc(section),'<div class="empty">این بخش هنوز به داده‌های واقعی ربات متصل نشده و در مرحله بعد فعال می‌شود.</div>');}
-el('main').innerHTML=out;if(section==='آگهی‌ها')el('adSearch').addEventListener('input',e=>{filter=e.target.value;renderList()});}
+function render(){
+  el('nav').innerHTML=sections.map(s=>'<button data-section="'+esc(s)+'" class="'+(section===s?'active':'')+'">'+esc(s)+'</button>').join('');let out='';
+  if(section==='خانه'){
+    out=panel('📌 آخرین آگهی‌های واقعی',loaded?adRows(ads.slice(0,5)):'<div class="empty">در حال دریافت...</div>')+
+      panel('📊 وضعیت آگهی‌ها',row('کل آگهی‌ها',fmt(ads.length))+row('فعال',fmt(ads.filter(a=>a.status==='فعال').length))+row('غیرفعال',fmt(ads.filter(a=>a.status==='بسته').length)));
+  }else if(section==='آگهی‌ها'){
+    out=panel('📣 همه آگهی‌های واقعی','<input id="adSearch" class="search" placeholder="جستجوی شماره، ارز، کشور یا روش انتقال..." value="'+esc(filter)+'"><div id="list">'+adRows(ads.filter(a=>[a.id,a.type,a.currency,a.method,a.country,a.status].some(v=>String(v).toLowerCase().includes(filter.trim().toLowerCase()))))+'</div>');
+  }else if(section==='کانال‌ها'){
+    out=panel('📡 کانال‌های تلگرام',row('🇪🇺 کانال یورو • @FastChangeEurope',fmt(ads.filter(a=>a.channel==='یورو').length)+' آگهی')+row('🇺🇸 کانال دلار • @FastChangeDollar',fmt(ads.filter(a=>a.channel==='دلار').length)+' آگهی')+row('💬 گروه دیدگاه‌ها','@FastChangeArzGroup'))+
+      panel('آگهی‌های یورو',adRows(ads.filter(a=>a.channel==='یورو')))+panel('آگهی‌های دلار',adRows(ads.filter(a=>a.channel==='دلار')));
+  }else if(section==='گزارش‌ها'){
+    out=panel('📊 گزارش آگهی‌ها',row('کل آگهی‌ها',fmt(ads.length))+row('فعال',fmt(ads.filter(a=>a.status==='فعال').length))+row('غیرفعال',fmt(ads.filter(a=>a.status==='بسته').length))+row('یورو',fmt(ads.filter(a=>a.channel==='یورو').length))+row('دلار',fmt(ads.filter(a=>a.channel==='دلار').length)));
+  }else if(section==='پرونده'){
+    const a=ads.find(x=>x.id===selected);
+    out=a?panel('📄 پرونده آگهی #'+fmt(a.id),'<div class="grid">'+[['نوع و مقدار',esc(a.type)+' • '+fmt(a.amount)+' '+esc(a.currency)],['قیمت',fmt(a.price)+' تومان'],['روش انتقال',esc(a.method)],['کشور',esc(a.country||'ثبت نشده')],['وضعیت',badge(a.status)],['تاریخ ثبت',esc(a.created||'ثبت نشده')]].map(x=>'<div class="kv"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><div class="notice">پیشنهادها، مکالمات و دکمه‌های مدیریت این پرونده هنوز متصل نشده‌اند.</div><button class="btn primary" data-section="آگهی‌ها">بازگشت به آگهی‌ها</button>'):panel('پرونده','آگهی پیدا نشد.');
+  }else{out=panel('⏳ '+esc(section),'<div class="empty">این بخش هنوز به داده‌های واقعی ربات متصل نشده و در مرحله بعد فعال می‌شود.</div>');}
+  el('main').innerHTML=out;
+  if(section==='آگهی‌ها')el('adSearch').addEventListener('input',e=>{filter=e.target.value;renderList()});
+}
 document.addEventListener('click',e=>{const ad=e.target.closest('[data-ad]');if(ad){openAd(Number(ad.dataset.ad));return;}const n=e.target.closest('[data-section]');if(n)go(n.dataset.section);});
-async function refreshAll(){el('apiState').textContent='در حال دریافت';el('apiResult').textContent='در حال اتصال به Render...';try{const r=await fetch(API+'/ads',{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json();if(!Array.isArray(data.ads))throw Error('پاسخ معتبر نیست');ads=data.ads.filter(a=>a&&Number.isFinite(Number(a.ad_id))).map(normalize);loaded=true;const n=ads.filter(a=>a.status==='فعال').length;el('total').textContent=fmt(ads.length);el('active').textContent=fmt(n);el('closed').textContent=fmt(ads.length-n);el('connected').textContent='متصل';el('apiState').textContent='اتصال برقرار';el('livePill').textContent='● آگهی‌های واقعی';el('apiResult').textContent=fmt(ads.length)+' آگهی از سرور دریافت شد.';render();}catch(e){el('apiState').textContent='خطای اتصال';el('connected').textContent='ناموفق';el('apiResult').textContent='دریافت آگهی‌ها ناموفق بود: '+String(e.message||e);render();}}
+async function refreshAll(){
+  el('apiState').textContent='در حال دریافت';el('apiResult').textContent='در حال اتصال به Render...';
+  try{
+    const url=API+'/ads?_='+Date.now();
+    const r=await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'}});
+    if(!r.ok)throw Error('HTTP '+r.status);
+    const data=await r.json();if(!Array.isArray(data.ads))throw Error('پاسخ معتبر نیست');
+    ads=data.ads.filter(a=>a&&Number.isFinite(Number(a.ad_id))).map(normalize);
+    loaded=true;
+    const n=ads.filter(a=>a.status==='فعال').length;
+    el('total').textContent=fmt(ads.length);el('active').textContent=fmt(n);el('closed').textContent=fmt(ads.length-n);
+    el('connected').textContent='متصل';el('apiState').textContent='اتصال برقرار';el('livePill').textContent='● آگهی‌های واقعی';
+    el('apiResult').textContent=fmt(ads.length)+' آگهی از سرور دریافت شد.';render();
+  }catch(e){el('apiState').textContent='خطای اتصال';el('connected').textContent='ناموفق';el('apiResult').textContent='دریافت آگهی‌ها ناموفق بود: '+String(e.message||e);render();}
+}
 render();refreshAll();
-</script><script>if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));</script></body></html>
+// Old installed service workers can serve an outdated index.html indefinitely.
+// Unregister them once so this version is loaded directly from GitHub Pages.
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(()=>{});}
+</script>
+</body></html>
