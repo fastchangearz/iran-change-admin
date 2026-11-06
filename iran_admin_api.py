@@ -9,7 +9,27 @@ latest_stats = None
 latest_ads = []
 latest_offers = []
 latest_conversations = []
-latest_deals = []
+
+def read_supabase(table):
+    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    key = os.environ.get("SUPABASE_SECRET_KEY", "")
+
+    if not url or not key:
+        raise RuntimeError("Supabase is not configured")
+
+    response = requests.get(
+        url + "/rest/v1/" + table,
+        headers={
+            "apikey": key,
+            "Accept": "application/json"
+        },
+        params={"select": "*", "limit": "1000"},
+        timeout=20
+    )
+
+    response.raise_for_status()
+    return response.json()
+
 
 
 @app.route('/')
