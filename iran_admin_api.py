@@ -342,6 +342,90 @@ def admin_deal_action():
         return jsonify({'error': 'Database operation failed'}), 503
 
 
+# ==========================================
+# Telegram Bot - Admin Command Connection
+# ==========================================
+
+@app.route('/bot/commands', methods=['GET'])
+def bot_commands():
+    if not authorized():
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    try:
+        rows = db_request(
+            'GET',
+            'iran_admin_commands',
+            {
+                'select': 'id,ad_id,offer_id,action,reason,expected_state,status',
+                'status': 'eq.pending',
+                'order': 'id.asc',
+                'limit': 20
+            }
+        )
+
+        return jsonify({'commands': rows})
+
+    except (requests.RequestException, RuntimeError, ValueError):
+        app.logger.exception('Bot command polling failed')
+        return jsonify({'error': 'Database unavailable'}), 503
+
+
+@app.route('/bot/commands/<int:command_id>/ack', methods=['POST'])
+def bot_command_ack(command_id):
+    if not authorized():
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Invalid JSON'}), 400
+
+    if data.get('status') not in ('done', 'failed'):
+        return jsonify({'error': 'Invalid status'}), 400
+
+    error = str(data.get('error') or '')[:500]
+
+    try:
+        matches = db_request(
+            'GET',
+            'iran_admin_commands',
+            {
+                'select': 'id,status',
+                'id': 'eq.' + str(command_id),
+                'limit': 1
+            }
+        )
+
+        if not matches:
+            return jsonify({'error': 'Command not found'}), 404
+
+        if matches[0]['status'] != 'pending':
+            return jsonify({
+                'status': matches[0]['status'],
+                'already_acknowledged': True
+            })
+
+        db_request(
+            'PATCH',
+            'iran_admin_commands',
+            {
+                'id': 'eq.' + str(command_id),
+                'status': 'eq.pending'
+            },
+            {
+                'status': data['status'],
+                'error': error,
+                'finished_at': datetime.now(timezone.utc).isoformat()
+            },
+            'return=minimal'
+        )
+
+        return jsonify({'status': data['status']})
+
+    except (requests.RequestException, RuntimeError, ValueError, KeyError):
+        app.logger.exception('Bot command acknowledgement failed')
+        return jsonify({'error': 'Database unavailable'}), 503
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
