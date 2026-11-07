@@ -83,6 +83,173 @@ document.addEventListener('click',function(e){const f=e.target.closest('[data-de
 const originalRefreshAll=refreshAll;
 refreshAll=async function(){const [_,dealResult]=await Promise.allSettled([originalRefreshAll(),loadCollection('/deals','deals')]);if(dealResult.status==='fulfilled'){deals=dealResult.value.filter(d=>d&&Number.isInteger(Number(d.ad_id))&&Number.isInteger(Number(d.offer_id))&&visibleAdId(d.ad_id)).map(normalizeDeal);dealsLoaded=true;dealsError='';}else{dealsError='دریافت توافق‌ها ناموفق بود: '+String(dealResult.reason?.message||dealResult.reason);}el('apiResult').textContent+=(dealsLoaded?' • '+fmt(deals.length)+' توافق':' • '+dealsError);if(dealsError){el('apiState').textContent='اتصال ناقص';el('livePill').textContent='● اتصال ناقص';}render();};
 
+/* Iran Change - Admin access and action history */
+let adminKey = '';
+let adminActions = [];
+let adminMessage = 'برای ورود، رمز مدیریت Render را وارد کنید.';
+
+function adminHeaders() {
+  return {
+    'Accept': 'application/json',
+    'X-Admin-Key': adminKey
+  };
+}
+
+function renderAdminLogin() {
+  if (!adminKey) {
+    return panel('🔐 ورود مدیر',
+      '<p class="muted">رمز IRAN_CHANGE_ADMIN_KEY را وارد کنید. رمز داخل کد سایت ذخیره نمی‌شود.</p>' +
+      '<input id="adminPassword" type="password" class="search" autocomplete="off" placeholder="رمز اختصاصی مدیر">' +
+      '<button class="btn primary" id="adminLogin">ورود امن</button>' +
+      '<p class="muted">' + esc(adminMessage) + '</p>'
+    );
+  }
+
+  return panel('🔐 وضعیت مدیریت',
+    '<span class="tag good">مدیر تأیید شده</span>' +
+    '<p class="muted">دسترسی مشاهده سوابق مدیریتی فعال است.</p>' +
+    '<button class="btn" id="adminLogout">خروج از مدیریت</button>'
+  );
+}
+
+function renderAdminHistory() {
+  if (!adminKey) {
+    return '<div class="empty">برای مشاهده تاریخچه، ابتدا وارد شوید.</div>';
+  }
+
+  const names = {
+    review: 'ارجاع به بررسی مدیر',
+    cancel: 'لغو معامله',
+    complete: 'تکمیل معامله'
+  };
+
+  const items = adminActions.filter(a => visibleAdId(a.ad_id));
+
+  if (!items.length) {
+    return '<div class="empty">هنوز اقدام مدیریتی ثبت نشده است.</div>';
+  }
+
+  return items.map(a =>
+    '<div class="row">' +
+      '<div><b>آگهی #' + fmt(a.ad_id) + '</b>' +
+      '<div class="muted">پیشنهاد #' + fmt(a.offer_id) + '</div>' +
+      '<div class="muted">' + esc(a.created_at || '') + '</div>' +
+      '<div class="muted">دلیل: ' + esc(a.reason || 'ثبت نشده') + '</div></div>' +
+      '<div style="text-align:left">' +
+      '<b>' + esc(names[a.action] || a.action) + '</b>' +
+      '<div class="muted">' + esc(a.old_state) + ' ← ' + esc(a.new_state) + '</div>' +
+      '</div></div>'
+  ).join('');
+}
+
+async function fetchAdminHistory() {
+  if (!adminKey) return;
+
+  try {
+    const response = await fetch(API + '/admin/actions', {
+      method: 'GET',
+      headers: adminHeaders(),
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        adminKey = '';
+        adminMessage = 'اعتبار ورود پایان یافته یا رمز صحیح نیست.';
+      }
+      throw Error('HTTP ' + response.status);
+    }
+
+    const result = await response.json();
+    adminActions = Array.isArray(result.actions) ? result.actions : [];
+    adminMessage = 'تاریخچه دریافت شد.';
+  } catch (error) {
+    adminMessage = 'خطا در دریافت تاریخچه: ' + error.message;
+  }
+}
+
+async function adminLogin() {
+  const input = document.getElementById('adminPassword');
+  const candidate = input ? input.value.trim() : '';
+
+  if (!candidate) {
+    adminMessage = 'رمز مدیریت را وارد کنید.';
+    render();
+    return;
+  }
+
+  try {
+    const response = await fetch(API + '/admin/verify', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'X-Admin-Key': candidate
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      adminMessage = 'رمز صحیح نیست یا سرور آماده نیست.';
+      render();
+      return;
+    }
+
+    adminKey = candidate;
+    adminMessage = 'ورود موفق بود.';
+    await fetchAdminHistory();
+    render();
+  } catch (error) {
+    adminMessage = 'اتصال مدیریت برقرار نشد: ' + error.message;
+    render();
+  }
+}
+
+const renderBeforeAdmin = render;
+
+render = function() {
+  renderBeforeAdmin();
+
+  if (section === 'فعالیت‌ها') {
+    el('main').innerHTML =
+      renderAdminLogin() +
+      panel('📜 تاریخچه اقدامات مدیر', renderAdminHistory());
+  }
+
+  if (section === 'پرونده توافق') {
+    const d = deals[selectedDeal];
+
+    if (d) {
+      el('main').innerHTML += panel('🛡️ نظارت بر معامله',
+        row('تأیید صاحب آگهی', d.ownerConfirmed ? '✅ ثبت شده' : '⏳ ثبت نشده') +
+        row('تأیید پیشنهاددهنده', d.proposerConfirmed ? '✅ ثبت شده' : '⏳ ثبت نشده') +
+        row('درخواست لغو', d.cancelRequested ? '⚠️ وجود دارد' : 'ثبت نشده') +
+        '<div class="notice">ثبت لغو، تکمیل و بازگشایی آگهی تا اتصال وضعیت داخلی ربات به سرور غیرفعال است.</div>' +
+        '<button class="btn" data-section="فعالیت‌ها">مشاهده تاریخچه مدیریت</button>'
+      );
+    }
+  }
+};
+
+document.addEventListener('click', async function(event) {
+  if (event.target.closest('#adminLogin')) {
+    await adminLogin();
+  }
+
+  if (event.target.closest('#adminLogout')) {
+    adminKey = '';
+    adminActions = [];
+    adminMessage = 'از مدیریت خارج شدید.';
+    render();
+  }
+});
+
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Enter' &&
+      event.target.id === 'adminPassword') {
+    adminLogin();
+  }
+});
+
 render();refreshAll();
 if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(()=>{});}
 </script>
