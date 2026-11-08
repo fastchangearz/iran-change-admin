@@ -23,7 +23,7 @@ const visibleAdId=id=>showArchived||Number(id)>=MIN_VISIBLE_AD_ID;
 function toggleArchived(){showArchived=!showArchived;document.getElementById('archiveToggle').textContent=showArchived?'🙈 مخفی‌کردن سوابق قدیمی':'📂 نمایش سوابق قدیمی';refreshAll();}
 let ads=[],offers=[],conversations=[],section='خانه',selected=null,selectedOffer=null,selectedConversation=null,filter='',offerFilter='all',conversationFilter='all';
 let adsLoaded=false,offersLoaded=false,conversationsLoaded=false,adsError='',offersError='',conversationsError='';
-const sections=['خانه','آگهی‌ها','کانال‌ها','پیشنهادها','مکالمات','توافق‌ها','مدارک','امور مالی','فعالیت‌ها','گزارش‌ها'];
+const sections=['خانه','آگهی‌ها','کانال‌ها','پیشنهادها','مکالمات','💬 پشتیبانی','توافق‌ها','مدارک','امور مالی','فعالیت‌ها','گزارش‌ها'];
 const el=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function parseLocalizedNumber(input){if(input===null||input===undefined)return null;let s=String(input).trim();if(!s)return null;s=s.replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-0x06F0)).replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x0660)).replace(/[٬،,\s\u200c\u200e\u200f\u00a0]/g,'').replace(/٫/g,'.');if(!/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(s))return null;const n=Number(s);return Number.isFinite(n)?n:null;}
@@ -248,6 +248,53 @@ document.addEventListener('keydown', function(event) {
       event.target.id === 'adminPassword') {
     adminLogin();
   }
+});
+
+/* Support center: admin-only, text replies through Telegram outbox. */
+let supportMessages=[],supportLoaded=false,supportError='',supportSelected=null,supportSending=false,supportNotice='';
+function supportDate(v){if(!v)return 'زمان نامشخص';const d=new Date(v);return Number.isNaN(d.getTime())?esc(v):esc(d.toLocaleString('fa-IR'));}
+function supportGroups(){const m=new Map();for(const x of supportMessages){const id=String(x.user_id??'');if(!/^\d+$/.test(id))continue;if(!m.has(id))m.set(id,[]);m.get(id).push(x);}return [...m.entries()].sort((a,b)=>Math.max(...b[1].map(x=>Number(x.id)||0))-Math.max(...a[1].map(x=>Number(x.id)||0)));}
+function renderSupport(){
+ if(!adminKey)return renderAdminLogin()+panel('💬 پشتیبانی','<div class="empty">برای مشاهده پیام‌های خصوصی کاربران ابتدا وارد مدیریت شوید.</div>');
+ const groups=supportGroups();
+ let out=panel('💬 مرکز پشتیبانی', '<div class="muted">پیام‌های دریافتی از ربات ایران چنج؛ پاسخ متنی از طریق ربات ارسال می‌شود.</div><div style="margin-top:12px"><button class="btn primary" id="supportRefresh">🔄 دریافت پیام‌ها</button></div>'+(supportError?'<div class="notice">'+esc(supportError)+'</div>':'')+(supportNotice?'<div class="notice">'+esc(supportNotice)+'</div>':''));
+ if(!supportLoaded)return out+panel('گفتگوها','<div class="empty">برای بارگذاری، «دریافت پیام‌ها» را بزنید.</div>');
+ out+=panel('👥 گفتگوهای کاربران ('+fmt(groups.length)+')',groups.length?groups.map(([uid,msgs])=>{const last=msgs.slice().sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0))[0];return '<div class="row item" data-support-user="'+esc(uid)+'"><div><b>کاربر '+esc(uid)+'</b><div class="muted">'+esc(String(last.body||last.file_name||({'photo':'عکس','document':'سند'}[last.kind]||'پیام')).slice(0,90))+'</div><div class="muted">'+supportDate(last.created_at)+'</div></div><span class="tag">'+fmt(msgs.length)+' پیام</span></div>';}).join(''):'<div class="empty">هنوز پیام پشتیبانی ثبت نشده است.</div>');
+ if(supportSelected&&groups.some(([id])=>id===supportSelected)){
+ const msgs=groups.find(([id])=>id===supportSelected)[1].slice().sort((a,b)=>(Number(a.id)||0)-(Number(b.id)||0));
+ const history=msgs.map(x=>'<div class="kv" style="margin:8px 0;overflow-wrap:anywhere"><span>'+((x.direction==='incoming')?'📩 کاربر':'📤 مدیر')+' • '+supportDate(x.created_at)+'</span><div style="white-space:pre-wrap;line-height:1.9">'+esc(x.body||'')+'</div>'+(x.kind==='photo'?'<div class="muted">📷 عکس دریافت شده (نمایش فایل هنوز فعال نیست)</div>':x.kind==='document'?'<div class="muted">📎 '+esc(x.file_name||'سند دریافت شده')+' (دانلود هنوز فعال نیست)</div>':'')+'</div>').join('');
+ out+=panel('📨 گفتگو با کاربر '+esc(supportSelected),history+'<label for="supportReply" class="muted">پاسخ مدیر</label><textarea id="supportReply" class="search" rows="4" maxlength="4000" style="resize:vertical;white-space:pre-wrap" placeholder="متن پاسخ را بنویسید..."></textarea><button class="btn primary" id="supportSend" '+(supportSending?'disabled':'')+'>📤 ثبت پاسخ برای ارسال در تلگرام</button><p class="muted">ثبت پاسخ به معنی تحویل قطعی نیست؛ ربات باید آن را ارسال کند.</p>');
+ }
+ return out;
+}
+async function fetchSupportMessages(){
+ if(!adminKey)return;
+ supportError='';
+ try{const r=await fetch(API+'/admin/support/messages?_='+Date.now(),{headers:adminHeaders(),cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json();if(!Array.isArray(data.messages))throw Error('پاسخ سرور نامعتبر است');supportMessages=data.messages;supportLoaded=true;}
+ catch(e){supportError='دریافت پیام‌ها ناموفق بود: '+e.message;}
+ if(section==='💬 پشتیبانی')render();
+}
+async function sendSupportReply(){
+ if(!adminKey||!supportSelected||supportSending)return;
+ const field=el('supportReply');const body=field?.value.trim()||'';
+ if(!body){supportNotice='ابتدا متن پاسخ را وارد کنید.';render();return;}
+ if(!/^\d+$/.test(supportSelected)){supportNotice='شناسه کاربر نامعتبر است.';render();return;}
+ supportSending=true;supportNotice='';
+ const button=el('supportSend');if(button)button.disabled=true;
+ try{const r=await fetch(API+'/admin/support/reply',{method:'POST',headers:{...adminHeaders(),'Content-Type':'application/json'},body:JSON.stringify({user_id:Number(supportSelected),body})});if(!r.ok)throw Error('HTTP '+r.status);supportNotice='پاسخ در صف ارسال ربات ثبت شد. برای اطمینان از تحویل، تلگرام و وضعیت ربات را بررسی کنید.';}
+ catch(e){supportNotice='ثبت پاسخ ناموفق بود: '+e.message+'؛ متن خود را نگه دارید.';supportSending=false;if(button)button.disabled=false;return;}
+ supportSending=false;render();
+}
+const renderBeforeSupport=render;
+render=function(){renderBeforeSupport();if(section==='💬 پشتیبانی')el('main').innerHTML=renderSupport();};
+const goBeforeSupport=go;
+go=function(s){goBeforeSupport(s);if(s==='💬 پشتیبانی'&&adminKey)fetchSupportMessages();};
+const loginBeforeSupport=adminLogin;
+adminLogin=async function(){await loginBeforeSupport();if(adminKey&&section==='💬 پشتیبانی')await fetchSupportMessages();};
+document.addEventListener('click',async e=>{
+ const u=e.target.closest('[data-support-user]');if(u){supportSelected=u.dataset.supportUser;supportNotice='';render();return;}
+ if(e.target.closest('#supportRefresh')){await fetchSupportMessages();return;}
+ if(e.target.closest('#supportSend')){await sendSupportReply();}
 });
 
 render();refreshAll();
