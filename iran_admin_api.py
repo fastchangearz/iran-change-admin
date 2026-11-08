@@ -1046,6 +1046,123 @@ def bot_command_ack(command_id):
 
 
 # ==========================================
+# Admin Support Center
+# ==========================================
+
+@app.route(
+    '/admin/support/messages',
+    methods=['GET', 'OPTIONS']
+)
+def admin_support_messages():
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    if not admin_authorized():
+        return jsonify({
+            'error': 'Unauthorized'
+        }), 401
+
+    try:
+        rows = read_supabase(
+            'iran_support_messages'
+        )
+
+        rows.sort(
+            key=lambda r: r.get('id', 0),
+            reverse=True
+        )
+
+        return jsonify({
+            'messages': rows,
+            'count': len(rows)
+        })
+
+    except (
+        requests.RequestException,
+        RuntimeError,
+        ValueError
+    ):
+        app.logger.exception(
+            'Support messages unavailable'
+        )
+
+        return jsonify({
+            'error': 'Database unavailable'
+        }), 503
+
+
+@app.route(
+    '/admin/support/reply',
+    methods=['POST', 'OPTIONS']
+)
+def admin_support_reply():
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    if not admin_authorized():
+        return jsonify({
+            'error': 'Unauthorized'
+        }), 401
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({
+            'error': 'Invalid JSON'
+        }), 400
+
+    user_id = data.get('user_id')
+    body = data.get('body')
+
+    if (
+        type(user_id) is not int
+        or user_id <= 0
+        or not isinstance(body, str)
+        or not body.strip()
+        or len(body) > 4000
+    ):
+        return jsonify({
+            'error': 'Invalid recipient or message'
+        }), 400
+
+    try:
+        saved = db_request(
+            'POST',
+            'iran_support_outbox',
+            payload=[{
+                'user_id': user_id,
+                'body': body.strip(),
+                'status': 'pending'
+            }],
+            prefer='return=representation'
+        )
+
+        if not isinstance(saved, list) or not saved:
+            raise ValueError(
+                'Reply was not saved'
+            )
+
+        return jsonify({
+            'status': 'pending',
+            'message': 'Reply queued',
+            'reply_id': saved[0]['id']
+        }), 202
+
+    except (
+        requests.RequestException,
+        RuntimeError,
+        ValueError,
+        KeyError
+    ):
+        app.logger.exception(
+            'Support reply failed'
+        )
+
+        return jsonify({
+            'error': 'Database save failed'
+        }), 503
+
+# ==========================================
 # Start Server
 # ==========================================
 
