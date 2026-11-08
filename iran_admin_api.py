@@ -1161,6 +1161,84 @@ def admin_support_reply():
         return jsonify({
             'error': 'Database save failed'
         }), 503
+# Add this block to app.py before the Start Server section.
+# Uses existing app, authorized, db_request and datetime/timezone.
+
+@app.route('/bot/support/incoming', methods=['POST'])
+def bot_support_incoming():
+    if not authorized():
+        return jsonify({'error': 'Unauthorized'}), 401
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Invalid JSON'}), 400
+    uid = data.get('user_id')
+    mid = data.get('telegram_message_id')
+    kind = data.get('kind')
+    body = data.get('body') or ''
+    if (type(uid) is not int or uid <= 0 or type(mid) is not int or mid <= 0
+            or kind not in ('text', 'photo', 'document')
+            or not isinstance(body, str) or len(body) > 4000):
+        return jsonify({'error': 'Invalid message'}), 400
+    fid = data.get('file_id')
+    if kind != 'text' and (not isinstance(fid, str) or not fid):
+        return jsonify({'error': 'Missing file_id'}), 400
+    try:
+        # Telegram updates may be retried: avoid duplicate records.
+        found = db_request('GET', 'iran_support_messages', {
+            'select': 'id', 'user_id': 'eq.' + str(uid),
+            'telegram_message_id': 'eq.' + str(mid),
+            'direction': 'eq.incoming', 'limit': 1
+        })
+        if found:
+            return jsonify({'status': 'already_saved', 'id': found[0]['id']})
+        row = {'user_id': uid, 'telegram_message_id': mid,
+               'direction': 'incoming', 'kind': kind, 'body': body,
+               'ad_id': data.get('ad_id') if type(data.get('ad_id')) is int else None,
+               'file_id': fid if kind != 'text' else None,
+               'file_name': str(data.get('file_name') or '')[:255] or None,
+               'file_size': data.get('file_size') if type(data.get('file_size')) is int else None}
+        saved = db_request('POST', 'iran_support_messages', payload=[row],
+                           prefer='return=representation')
+        return jsonify({'status': 'saved', 'id': saved[0]['id']}), 201
+    except (requests.RequestException, RuntimeError, ValueError, KeyError):
+        app.logger.exception('Support incoming save failed')
+        return jsonify({'error': 'Database unavailable'}), 503
+
+
+@app.route('/bot/support/outbox', methods=['GET'])
+def bot_support_outbox():
+    if not authorized():
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        rows = db_request('GET', 'iran_support_outbox', {
+            'select': 'id,user_id,body,status', 'status': 'eq.pending',
+            'order': 'id.asc', 'limit': 20
+        })
+        return jsonify({'outbox': rows})
+    except (requests.RequestException, RuntimeError, ValueError):
+        app.logger.exception('Support outbox read failed')
+        return jsonify({'error': 'Database unavailable'}), 503
+
+
+@app.route('/bot/support/outbox/<int:reply_id>/ack', methods=['POST'])
+def bot_support_outbox_ack(reply_id):
+    if not authorized():
+        return jsonify({'error': 'Unauthorized'}), 401
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or data.get('status') not in ('sent', 'failed'):
+        return jsonify({'error': 'Invalid status'}), 400
+    try:
+        rows = db_request('PATCH', 'iran_support_outbox',
+            {'id': 'eq.' + str(reply_id), 'status': 'eq.pending'},
+            {'status': data['status'], 'error': str(data.get('error') or '')[:500],
+             'finished_at': datetime.now(timezone.utc).isoformat()},
+            'return=representation')
+        if not rows:
+            return jsonify({'error': 'Reply not pending or not found'}), 409
+        return jsonify({'status': rows[0]['status']})
+    except (requests.RequestException, RuntimeError, ValueError):
+        app.logger.exception('Support outbox acknowledgement failed')
+        return jsonify({'error': 'Database unavailable'}), 503
 
 # ==========================================
 # Start Server
