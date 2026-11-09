@@ -1241,6 +1241,27 @@ def bot_support_outbox_ack(reply_id):
         return jsonify({'error': 'Database unavailable'}), 503
 
 # ==========================================
+# Admin support capabilities (authenticated)
+# ==========================================
+
+@app.route('/admin/support/capabilities', methods=['GET', 'OPTIONS'])
+def admin_support_capabilities():
+    if request.method == 'OPTIONS':
+        return '', 204
+    if not admin_authorized():
+        return jsonify({'error': 'Unauthorized'}), 401
+    return jsonify({
+        'support_text_incoming': True,
+        'support_text_outgoing': True,
+        'support_photo_metadata_incoming': True,
+        'support_document_metadata_incoming': True,
+        'media_preview': False,
+        'media_outgoing': False,
+        'version': 'support-stage-2'
+    })
+
+
+# ==========================================
 # Start Server
 # ==========================================
 
