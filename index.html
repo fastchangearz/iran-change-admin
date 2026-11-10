@@ -307,6 +307,87 @@ document.addEventListener('click',async e=>{
  if(e.target.closest('#supportSend')){await sendSupportReply();}
 });
 
+
+/* Mini-chat admin panel: separate owner/proposer threads, no participant WebApp yet. */
+let mcAgreements=[],mcAgreementId=null,mcThreads=[],mcThreadId=null,mcMessages=[];
+let mcLoading=false,mcSending=false,mcNotice='',mcError='';
+async function mcFetch(path,options={}){
+ if(!adminKey)throw Error('ابتدا وارد مدیریت شوید.');
+ const r=await fetch(API+path,{cache:'no-store',...options,headers:{...adminHeaders(),...(options.body?{'Content-Type':'application/json'}:{})}});
+ const data=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(r.status===401?'دسترسی مدیریت تأیید نشد.':(data.error||'HTTP '+r.status));
+ return data;
+}
+async function mcLoadAgreements(){
+ if(!adminKey)return;
+ mcLoading=true;mcError='';render();
+ try{const d=await mcFetch('/admin/minichat/agreements');mcAgreements=Array.isArray(d.agreements)?d.agreements:[];}
+ catch(e){mcError=String(e.message||e);}finally{mcLoading=false;render();}
+}
+async function mcOpenDeal(){
+ mcAgreementId=null;mcThreadId=null;mcThreads=[];mcMessages=[];mcNotice='';
+ if(!adminKey)return render();
+ await mcLoadAgreements();
+ const d=deals[selectedDeal];if(!d)return;
+ const match=mcAgreements.find(a=>Number(a.ad_id)===d.adId&&Number(a.offer_id)===d.offerId);
+ if(match){mcAgreementId=Number(match.agreement_id);await mcLoadThreads();}else render();
+}
+async function mcLoadThreads(){
+ if(!mcAgreementId)return;
+ mcLoading=true;mcError='';render();
+ try{const d=await mcFetch('/admin/minichat/threads/'+mcAgreementId);mcThreads=Array.isArray(d.threads)?d.threads:[];}
+ catch(e){mcError=String(e.message||e);}finally{mcLoading=false;render();}
+}
+async function mcOpenThread(id){
+ mcThreadId=id;mcMessages=[];mcNotice='';mcLoading=true;mcError='';render();
+ try{const d=await mcFetch('/admin/minichat/messages/'+id);mcMessages=Array.isArray(d.messages)?d.messages:[];}
+ catch(e){mcError=String(e.message||e);}finally{mcLoading=false;render();}
+}
+function mcRender(){
+ if(!adminKey)return panel('💬 گفت‌وگوهای خصوصی توافق','<div class="notice">برای دیدن گفت‌وگوها ابتدا وارد مدیریت شوید.</div>');
+ const d=deals[selectedDeal];if(!d)return '';
+ let content='<div class="muted">گفت‌وگوهای مدیر با صاحب آگهی و پیشنهاددهنده کاملاً جدا هستند.</div>';
+ if(mcLoading)content+='<div class="muted">در حال دریافت اطلاعات...</div>';
+ if(mcError)content+='<div class="notice">خطا: '+esc(mcError)+'</div>';
+ if(mcNotice)content+='<div class="notice">'+esc(mcNotice)+'</div>';
+ if(!mcAgreementId){
+  content+='<div class="notice">برای این توافق هنوز پرونده مینی‌چت ثبت نشده است. ساخت پرونده باید پس از تأیید طرفین توسط ربات انجام شود.</div>';
+ }else{
+  const agreement=mcAgreements.find(a=>Number(a.agreement_id)===mcAgreementId);
+  content+='<div class="muted">شماره پرونده گفت‌وگو: '+fmt(mcAgreementId)+' | وضعیت: '+esc(agreement?.status||'نامشخص')+'</div>';
+  content+='<div class="offer-filters">'+[['owner','👤 گفت‌وگو با صاحب آگهی'],['proposer','🤝 گفت‌وگو با پیشنهاددهنده']].map(([role,label])=>{
+   const t=mcThreads.find(t=>t.participant_role===role);
+   return '<button type="button" '+(t?'data-mc-thread="'+Number(t.thread_id)+'"':'disabled')+' class="'+(t&&Number(t.thread_id)===mcThreadId?'active':'')+'">'+label+(t?'':' (هنوز ساخته نشده)')+'</button>';
+  }).join('')+'</div>';
+  if(mcThreadId){
+   content+='<div style="max-height:350px;overflow:auto;padding:12px;border:1px solid #34435e;border-radius:14px;margin:12px 0">';
+   content+=mcMessages.length?mcMessages.map(m=>'<div style="margin:9px 0;padding:10px;border-radius:12px;background:'+(m.sender_role==='admin'?'#27334e':'#18283b')+'"><b>'+(m.sender_role==='admin'?'مدیر':'کاربر')+'</b><div style="white-space:pre-wrap;overflow-wrap:anywhere">'+esc(m.message_text||('[پیام '+String(m.message_type||'فایل')+']'))+'</div><small class="muted">'+esc(m.created_at||'')+'</small></div>').join(''):'<div class="muted">هنوز پیامی ثبت نشده است.</div>';
+   content+='</div>';
+   if(agreement?.status==='active')content+='<textarea id="mcText" rows="3" maxlength="4000" placeholder="پیام مدیر را بنویسید..." style="width:100%;box-sizing:border-box;border-radius:12px;padding:12px;background:#111d32;color:#fff;border:1px solid #42516c"></textarea><div style="margin-top:10px"><button class="btn primary" id="mcSend" '+(mcSending?'disabled':'')+'>ارسال پیام متنی</button> <button class="btn" id="mcRefresh">به‌روزرسانی پیام‌ها</button></div>';
+   else content+='<div class="notice">این توافق فعال نیست؛ ارسال پیام غیرفعال است.</div>';
+  }
+ }
+ return panel('💬 گفت‌وگوهای خصوصی توافق',content);
+}
+async function mcSendMessage(){
+ if(mcSending||!mcThreadId)return;
+ const input=el('mcText');const message=(input?.value||'').trim();if(!message)return;
+ mcSending=true;mcNotice='';
+ try{await mcFetch('/admin/minichat/send',{method:'POST',body:JSON.stringify({thread_id:mcThreadId,message_text:message})});await mcOpenThread(mcThreadId);mcNotice='پیام در دیتابیس ثبت شد؛ ارسال به تلگرام کاربر هنوز فعال نیست.';}
+ catch(e){mcError=String(e.message||e);}finally{mcSending=false;render();}
+}
+const mcPreviousRender=render;
+render=function(){mcPreviousRender();if(section==='پرونده توافق')el('main').insertAdjacentHTML('beforeend',mcRender());};
+const mcPreviousGo=go;
+go=function(s){mcPreviousGo(s);if(s==='پرونده توافق')mcOpenDeal();};
+const mcPreviousLogin=adminLogin;
+adminLogin=async function(){await mcPreviousLogin();if(adminKey&&section==='پرونده توافق')mcOpenDeal();};
+document.addEventListener('click',async e=>{
+ const t=e.target.closest('[data-mc-thread]');if(t){await mcOpenThread(Number(t.dataset.mcThread));return;}
+ if(e.target.closest('#mcSend')){await mcSendMessage();return;}
+ if(e.target.closest('#mcRefresh')&&mcThreadId){await mcOpenThread(mcThreadId);return;}
+});
+
 render();refreshAll();
 if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(()=>{});}
 </script>
