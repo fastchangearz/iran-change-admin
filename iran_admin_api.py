@@ -1265,6 +1265,10 @@ def admin_support_capabilities():
 # Start Server
 # ==========================================
 
+from iran_minichat_routes import install_minichat_routes
+install_minichat_routes(app, db_request, admin_authorized, authorized)
+
+
 if __name__ == '__main__':
     port = int(
         os.environ.get(
