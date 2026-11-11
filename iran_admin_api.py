@@ -1267,6 +1267,8 @@ def admin_support_capabilities():
 
 from iran_minichat_routes import install_minichat_routes
 install_minichat_routes(app, db_request, admin_authorized, authorized)
+from iran_minichat_user_routes import install_user_minichat_routes
+install_user_minichat_routes(app, db_request)
 
 
 if __name__ == '__main__':
