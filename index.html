@@ -1,394 +1,73 @@
-<!doctype html>
-<html lang="fa" dir="rtl">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ایران چنج | مدیریت</title><link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#080e1e"><link rel="icon" href="./icon-192.png">
-<style>
-:root{--bg:#080e1e;--panel:#121d33;--gold:#e9c579;--txt:#edf3ff;--muted:#9cacc8;--line:#2b3b58}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,#1b3155,transparent 45%),var(--bg);color:var(--txt);font:14px Tahoma,Arial,sans-serif}button,input{font:inherit}.shell{max-width:1180px;margin:auto;padding:18px 16px 90px}.top,.head,.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.top{margin-bottom:20px}.brand{font-size:22px;font-weight:800;color:var(--gold)}.muted,.sub{color:var(--muted);font-size:12px;line-height:1.9}.pill,.tag{border-radius:99px;padding:7px 10px;background:#173e35;color:#8df6c9;font-size:11px}.tag{background:#293b5d;color:#c6d8f7}.good{background:#164637;color:#80f1bc}.bad{background:#512c3b;color:#ffacb9}.hero{background:linear-gradient(125deg,#243a61,#101a30);border:1px solid #456085;border-radius:22px;padding:22px;margin-bottom:18px}.hero h1{font-size:21px;margin:0 0 8px}.hero p{color:#bdcce3;line-height:2;margin:0}.notice{padding:12px;background:#3b2d1e;border:1px solid #6d5530;border-radius:12px;color:#ffe1a1;line-height:1.9;margin:12px 0}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:15px 0}.stat,.panel{border:1px solid var(--line);background:#121d33;border-radius:17px;padding:16px}.stat b{font-size:26px;color:var(--gold);display:block;margin:7px 0}.stat small{color:var(--muted)}.panel{margin-bottom:12px}.head{margin-bottom:12px}.head h2{font-size:18px;margin:0}.nav{display:flex;gap:8px;overflow:auto;padding:5px 0 15px}.nav button,.btn{border:1px solid #344b6c;background:#1a2b49;color:var(--txt);border-radius:12px;padding:11px 14px;white-space:nowrap;cursor:pointer}.nav button.active,.btn.primary{background:linear-gradient(130deg,#b58b45,#f2d38e);border:0;color:#182038;font-weight:bold}.row{padding:13px 0;border-bottom:1px solid var(--line)}.row:last-child{border:0}.item{cursor:pointer}.item:hover{background:#213251}.value{color:var(--gold);font-weight:bold}.search{width:100%;padding:13px 15px;border-radius:12px;border:1px solid #405273;background:#0c1629;color:white;margin-bottom:12px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.kv{background:#0e1a2e;border:1px solid #2c3e59;padding:12px;border-radius:12px}.kv span{display:block;color:var(--muted);font-size:11px;margin-bottom:7px}.empty{padding:18px;color:var(--muted);line-height:2}.foot{position:fixed;bottom:0;left:0;right:0;background:#0b1425ef;border-top:1px solid #34425d;padding:10px;text-align:center;color:#c6a66e;font-size:11px}.offer-filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}.offer-filters button{border:1px solid #405273;background:#192c48;color:#edf3ff;padding:9px 12px;border-radius:10px}.offer-filters button.active{background:#e9c579;color:#182038;font-weight:bold}@media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.hero{padding:17px}.shell{padding:14px 12px 95px}}
-</style>
-</head>
-<body>
-<div class="shell"><header class="top"><div><div class="brand">✦ IRAN CHANGE</div><div class="sub">مرکز فرماندهی و مدیریت معاملات</div></div><span class="pill" id="livePill">● در حال اتصال</span></header>
-<div class="hero"><h1>همه ایران چنج، در یک پنل ✨</h1><p>آگهی‌ها، پیشنهادها، مکالمات و توافق‌ها — یکجا و مرتب.</p></div>
-<div class="notice">آگهی‌ها، پیشنهادها و اطلاعات کلی مکالمات از آخرین داده‌های همگام‌سازی‌شده نمایش داده می‌شوند. به‌صورت پیش‌فرض فقط آگهی‌های شماره ۲۵۱۲ به بعد و سوابق مرتبط نمایش داده می‌شوند؛ سوابق قبلی حذف نشده‌اند. متن خصوصی پیام‌ها منتقل نشده است. توافق‌ها نیز از آخرین داده‌های همگام‌سازی‌شده نمایش داده می‌شوند. مدارک و امور مالی هنوز متصل نیستند و دکمه‌های مدیریتی تغییر وضعیت فعال نیستند.</div>
-<section class="panel"><div class="head"><h2>🔌 اتصال به سرور</h2><span class="tag" id="apiState">در حال اتصال</span></div><p id="apiResult" class="muted">در حال دریافت اطلاعات...</p><button class="btn primary" onclick="refreshAll()">🔄 به‌روزرسانی اطلاعات</button> <button class="btn" id="archiveToggle" onclick="toggleArchived()">📂 نمایش سوابق قدیمی</button></section>
-<div class="stats"><div class="stat"><small>کل آگهی‌ها</small><b id="total">—</b></div><div class="stat"><small>فعال</small><b id="active">—</b></div><div class="stat"><small>غیرفعال</small><b id="closed">—</b></div><div class="stat"><small>پیشنهادها</small><b id="offerTotal">—</b></div><div class="stat"><small>مکالمات</small><b id="conversationTotal">—</b></div></div>
-<nav class="nav" id="nav"></nav><main id="main"></main></div><div class="foot">IRAN CHANGE • آخرین داده‌های همگام‌سازی‌شده از Render</div>
-<script>
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080e1e"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon-192.png"><title>IRAN CHANGE | مدیریت</title><style>
+:root{--bg:#080e1e;--panel:#121d33;--panel2:#172641;--gold:#e9c579;--txt:#edf3ff;--muted:#a3b2ce;--line:#2b3b58}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:14px Tahoma,Arial,sans-serif}button,input,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.5;cursor:default}.app{max-width:1000px;margin:auto;padding:16px 14px 105px}.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}.brand{font-size:20px;font-weight:900;color:var(--gold);direction:ltr}.muted{color:var(--muted);font-size:12px;line-height:1.9}.small{font-size:11px}.pill{font-size:11px;background:#183d35;color:#95f4c6;padding:7px 10px;border-radius:50px}.heading{display:flex;align-items:center;gap:10px;margin:12px 0 18px}.heading h1{font-size:21px;margin:0}.back{border:1px solid var(--line);background:var(--panel);color:var(--txt);border-radius:12px;padding:10px}.hero{background:linear-gradient(125deg,#263c61,#101a30);border:1px solid #405778;border-radius:20px;padding:20px;margin-bottom:14px}.hero h1{font-size:22px;margin:0 0 10px}.hero p{margin:0;color:#c5d1e7;line-height:1.9}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}.stat,.panel,.tile{border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:15px}.stat b{display:block;color:var(--gold);font-size:25px;margin-top:6px}.stat small{color:var(--muted)}.panel{margin-bottom:12px}.panel h2{font-size:16px;margin:0 0 12px}.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.tile{text-align:right;color:var(--txt);min-height:90px}.tile strong{display:block;font-size:15px;margin:8px 0 4px}.tile span{color:var(--muted);font-size:12px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding:13px 0;min-width:0}.row:last-child{border:0}.item{cursor:pointer}.item:active{background:var(--panel2)}.item>div{min-width:0}.value{color:var(--gold);font-weight:bold;white-space:nowrap}.tag{display:inline-block;border-radius:20px;padding:6px 9px;background:#293b5d;color:#c6d8f7;font-size:11px}.good{background:#164637;color:#80f1bc}.bad{background:#512c3b;color:#ffacb9}.btn{border:1px solid #405574;background:#1b2b49;color:var(--txt);border-radius:11px;padding:11px 13px;text-decoration:none;display:inline-block}.primary{background:linear-gradient(130deg,#b58b45,#f2d38e);border-color:transparent;color:#182038;font-weight:bold}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.search{width:100%;padding:13px;border-radius:12px;border:1px solid #405273;background:#0c1629;color:white;margin-bottom:12px;min-width:0}.filters{display:flex;gap:7px;overflow:auto;padding:3px 0 12px}.filters button{border:1px solid #405273;background:#192c48;color:var(--txt);padding:9px 12px;border-radius:10px;white-space:nowrap}.filters .active{background:var(--gold);color:#182038;font-weight:bold}.kvgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.kv{background:#0e1a2e;border:1px solid var(--line);padding:12px;border-radius:12px;overflow-wrap:anywhere}.kv span{display:block;color:var(--muted);font-size:11px;margin-bottom:8px}.notice{padding:12px;background:#3b2d1e;border:1px solid #6d5530;border-radius:12px;color:#ffe1a1;line-height:1.9;margin:10px 0}.empty{color:var(--muted);padding:16px;line-height:2}.bottom{position:fixed;bottom:0;left:0;right:0;background:#0b1425f7;border-top:1px solid #34425d;display:flex;justify-content:space-around;padding:9px 8px calc(10px + env(safe-area-inset-bottom));z-index:10}.bottom button{border:0;background:transparent;color:var(--muted);min-width:65px;padding:6px 4px;font-size:11px}.bottom button span{display:block;font-size:22px;margin-bottom:4px}.bottom button.active{color:var(--gold)}.footer{font-size:11px;color:var(--muted);text-align:center;margin:18px}.hide{display:none!important}@media(min-width:700px){.stats{grid-template-columns:repeat(5,1fr)}.tiles{grid-template-columns:repeat(4,1fr)}}@media(max-width:400px){.kvgrid{grid-template-columns:1fr}.app{padding:12px 10px 100px}.brand{font-size:17px}}
+</style></head><body><div class="app"><header class="top"><div><div class="brand">✦ IRAN CHANGE</div><div class="muted">مرکز مدیریت معاملات</div></div><span class="pill" id="live">● در حال اتصال</span></header><main id="main"></main><div class="footer">IRAN CHANGE • اطلاعات همگام‌سازی‌شده Render</div></div><nav class="bottom" id="bottom" aria-label="ناوبری اصلی"></nav><script>
 'use strict';
-const API='https://iran-change-admin.onrender.com';
-const MIN_VISIBLE_AD_ID=2512;
-let showArchived=false;
-const visibleAdId=id=>showArchived||Number(id)>=MIN_VISIBLE_AD_ID;
-function toggleArchived(){showArchived=!showArchived;document.getElementById('archiveToggle').textContent=showArchived?'🙈 مخفی‌کردن سوابق قدیمی':'📂 نمایش سوابق قدیمی';refreshAll();}
-let ads=[],offers=[],conversations=[],section='خانه',selected=null,selectedOffer=null,selectedConversation=null,filter='',offerFilter='all',conversationFilter='all';
-let adsLoaded=false,offersLoaded=false,conversationsLoaded=false,adsError='',offersError='',conversationsError='';
-const sections=['خانه','آگهی‌ها','کانال‌ها','🇪🇺 کانال یورو','💵 کانال دلار','🌍 سایر ارزها','💬 گروه دیدگاه‌ها','پیشنهادها','مکالمات','💬 پشتیبانی','توافق‌ها','مدارک','امور مالی','فعالیت‌ها','گزارش‌ها'];
-const el=id=>document.getElementById(id);
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function parseLocalizedNumber(input){if(input===null||input===undefined)return null;let s=String(input).trim();if(!s)return null;s=s.replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-0x06F0)).replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x0660)).replace(/[٬،,\s\u200c\u200e\u200f\u00a0]/g,'').replace(/٫/g,'.');if(!/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(s))return null;const n=Number(s);return Number.isFinite(n)?n:null;}
-function fmt(n){if(n===null||n===undefined||String(n).trim()==='')return '—';const value=parseLocalizedNumber(n);return value===null?esc(n):value.toLocaleString('fa-IR',{maximumFractionDigits:8});}
-const panel=(t,c)=>'<section class="panel"><div class="head"><h2>'+t+'</h2></div>'+c+'</section>';
-const row=(l,r)=>'<div class="row"><div>'+l+'</div><div>'+r+'</div></div>';
-const badge=s=>'<span class="tag '+(['فعال','پذیرفته‌شده'].includes(s)?'good':['بسته','ردشده'].includes(s)?'bad':'')+'">'+esc(s)+'</span>';
-function normalize(a){const currency=String(a.currency??''),trade=String(a.trade_type??''),status=String(a.status??'');return {id:Number(a.ad_id),type:/sell|فروش/i.test(trade)?'فروش':/buy|خرید/i.test(trade)?'خرید':trade,currency,amount:a.amount,price:a.price,method:String(a.method??''),country:String(a.country??''),created:String(a.created_at??''),channel:/EUR|یورو|euro/i.test(currency)?'یورو':/USD|دلار آمریکا|dollar/i.test(currency)?'دلار':'سایر',status:status.toLowerCase()==='active'?'فعال':status.toLowerCase()==='closed'?'بسته':status||'نامشخص'};}
-const offerStatus=s=>({accepted:'پذیرفته‌شده',pending:'در انتظار',rejected:'ردشده'}[String(s).toLowerCase()]||String(s||'نامشخص'));
-const conversationStatus=s=>({active:'فعال',open:'فعال',closed:'بسته',paused:'متوقف',pending:'در انتظار'}[String(s).toLowerCase()]||String(s||'نامشخص'));
-function normalizeOffer(o){return {id:Number(o.offer_id),adId:Number(o.ad_id),price:o.proposed_price,status:String(o.status??'').toLowerCase(),created:String(o.created_at??'')};}
-function normalizeConversation(c){return {id:Number(c.conversation_id),adId:Number(c.ad_id),status:String(c.status??'').toLowerCase(),created:String(c.created_at??''),updated:String(c.updated_at??'')};}
-function adRows(items){return items.length?items.map(a=>'<div class="row item" data-ad="'+a.id+'"><div><b>آگهی #'+fmt(a.id)+'</b><div class="muted">'+esc(a.type)+' • '+fmt(a.amount)+' '+esc(a.currency)+' • '+esc(a.method)+'</div><div class="muted">'+esc(a.country)+'</div></div><div style="text-align:left"><div class="value">'+fmt(a.price)+' تومان</div><div style="margin-top:8px">'+badge(a.status)+'</div></div></div>').join(''):'<div class="empty">آگهی‌ای برای نمایش وجود ندارد.</div>';}
-function offerRows(items){return items.length?items.map(o=>'<div class="row item" data-offer="'+o.id+'"><div><b>پیشنهاد #'+fmt(o.id)+'</b><div class="muted">مربوط به آگهی #'+fmt(o.adId)+'</div><div class="muted">'+esc(o.created||'تاریخ نامشخص')+'</div></div><div style="text-align:left"><div class="value">'+fmt(o.price)+' تومان</div><div style="margin-top:8px">'+badge(offerStatus(o.status))+'</div></div></div>').join(''):'<div class="empty">پیشنهادی در این وضعیت وجود ندارد.</div>';}
-function conversationRows(items){return items.length?items.map(c=>'<div class="row item" data-conversation="'+c.id+'"><div><b>مکالمه #'+fmt(c.id)+'</b><div class="muted">مربوط به آگهی #'+fmt(c.adId)+'</div><div class="muted">آخرین فعالیت: '+esc(c.updated||c.created||'نامشخص')+'</div></div><div style="text-align:left">'+badge(conversationStatus(c.status))+'</div></div>').join(''):'<div class="empty">مکالمه‌ای در این وضعیت وجود ندارد.</div>';}
-function go(s){section=s;render();window.scrollTo(0,0);}
-function openAd(id){selected=id;go('پرونده');}
-function openOffer(id){selectedOffer=id;go('پرونده پیشنهاد');}
-function openConversation(id){selectedConversation=id;go('پرونده مکالمه');}
-function renderList(){const q=filter.trim().toLowerCase();el('list').innerHTML=adRows(ads.filter(a=>[a.id,a.type,a.currency,a.method,a.country,a.status].some(v=>String(v).toLowerCase().includes(q))));}
-function offerSummary(){return row('همه پیشنهادها',fmt(offers.length))+row('در انتظار',fmt(offers.filter(o=>o.status==='pending').length))+row('پذیرفته‌شده',fmt(offers.filter(o=>o.status==='accepted').length))+row('ردشده',fmt(offers.filter(o=>o.status==='rejected').length));}
-function conversationSummary(){return row('همه مکالمات',fmt(conversations.length))+row('فعال',fmt(conversations.filter(c=>['active','open'].includes(c.status)).length))+row('بسته‌شده',fmt(conversations.filter(c=>c.status==='closed').length))+row('سایر وضعیت‌ها',fmt(conversations.filter(c=>!['active','open','closed'].includes(c.status)).length));}
-function render(){
- el('nav').innerHTML=sections.map(s=>'<button data-section="'+esc(s)+'" class="'+(section===s?'active':'')+'">'+esc(s)+'</button>').join('');let out='';
- if(section==='خانه'){out=panel('📌 آخرین آگهی‌های واقعی',adsLoaded?adRows(ads.slice(0,5)):'<div class="empty">'+esc(adsError||'در حال دریافت...')+'</div>')+panel('📩 آخرین پیشنهادها',offersLoaded?offerRows(offers.slice(0,5)):'<div class="empty">'+esc(offersError||'در حال دریافت...')+'</div>')+panel('💬 آخرین مکالمات',conversationsLoaded?conversationRows(conversations.slice(0,5)):'<div class="empty">'+esc(conversationsError||'در حال دریافت...')+'</div>')+panel('📊 وضعیت آگهی‌ها',row('کل آگهی‌ها',fmt(ads.length))+row('فعال',fmt(ads.filter(a=>a.status==='فعال').length))+row('غیرفعال',fmt(ads.filter(a=>a.status==='بسته').length)));}
- else if(section==='آگهی‌ها'){out=panel('📣 همه آگهی‌های واقعی','<input id="adSearch" class="search" placeholder="جستجوی شماره، ارز، کشور یا روش انتقال..." value="'+esc(filter)+'"><div id="list">'+adRows(ads.filter(a=>[a.id,a.type,a.currency,a.method,a.country,a.status].some(v=>String(v).toLowerCase().includes(filter.trim().toLowerCase()))))+'</div>');}
- else if(section==='پیشنهادها'){const opts=[['all','همه'],['pending','در انتظار'],['accepted','پذیرفته‌شده'],['rejected','ردشده']];out=panel('📊 خلاصه پیشنهادهای واقعی',offersLoaded?offerSummary():'<div class="empty">'+esc(offersError||'در حال دریافت...')+'</div>')+panel('📩 فهرست پیشنهادها','<div class="offer-filters">'+opts.map(([v,l])=>'<button data-offer-filter="'+v+'" class="'+(offerFilter===v?'active':'')+'">'+l+'</button>').join('')+'</div>'+(offersLoaded?offerRows(offers.filter(o=>offerFilter==='all'||o.status===offerFilter)):'<div class="empty">'+esc(offersError||'در حال دریافت...')+'</div>'));}
- else if(section==='مکالمات'){const opts=[['all','همه'],['active','فعال'],['closed','بسته‌شده']];out=panel('📊 خلاصه مکالمات واقعی',conversationsLoaded?conversationSummary():'<div class="empty">'+esc(conversationsError||'در حال دریافت...')+'</div>')+panel('💬 فهرست مکالمات','<div class="offer-filters">'+opts.map(([v,l])=>'<button data-conversation-filter="'+v+'" class="'+(conversationFilter===v?'active':'')+'">'+l+'</button>').join('')+'</div>'+(conversationsLoaded?conversationRows(conversations.filter(c=>conversationFilter==='all'||(conversationFilter==='active'?['active','open'].includes(c.status):c.status===conversationFilter))):'<div class="empty">'+esc(conversationsError||'در حال دریافت...')+'</div>'));}
- else if(section==='پرونده مکالمه'){const c=conversations.find(x=>x.id===selectedConversation);out=c?panel('📄 پرونده مکالمه #'+fmt(c.id),'<div class="grid">'+[['شماره آگهی',fmt(c.adId)],['وضعیت',badge(conversationStatus(c.status))],['تاریخ ایجاد',esc(c.created||'ثبت نشده')],['آخرین فعالیت',esc(c.updated||'ثبت نشده')]].map(x=>'<div class="kv"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><div class="notice">فقط اطلاعات کلی مکالمه نمایش داده می‌شود. متن پیام‌ها و هویت طرفین به سرور منتقل نشده‌اند.</div><button class="btn" data-section="مکالمات">بازگشت به مکالمات</button> '+(ads.some(a=>a.id===c.adId)?'<button class="btn primary" data-ad="'+c.adId+'">مشاهده آگهی مرتبط</button>':'<span class="muted">آگهی مرتبط در فهرست فعلی موجود نیست.</span>')):panel('پرونده مکالمه','مکالمه پیدا نشد.');}
- else if(section==='پرونده پیشنهاد'){const o=offers.find(x=>x.id===selectedOffer);out=o?panel('📄 پرونده پیشنهاد #'+fmt(o.id),'<div class="grid">'+[['شماره آگهی',fmt(o.adId)],['قیمت پیشنهادی',fmt(o.price)+' تومان'],['وضعیت',badge(offerStatus(o.status))],['تاریخ ثبت',esc(o.created||'ثبت نشده')]].map(x=>'<div class="kv"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><div class="notice">این پرونده فقط برای مشاهده است. وضعیت پیشنهاد از داخل ربات مدیریت می‌شود.</div><button class="btn" data-section="پیشنهادها">بازگشت به پیشنهادها</button> '+(ads.some(a=>a.id===o.adId)?'<button class="btn primary" data-ad="'+o.adId+'">مشاهده آگهی مرتبط</button>':'<span class="muted">آگهی مرتبط در فهرست فعلی موجود نیست.</span>')):panel('پرونده پیشنهاد','پیشنهاد پیدا نشد.');}
-   else if(section==='کانال‌ها'){
-    const destinations=[['🇪🇺 کانال یورو','@IranChangeEuro','https://t.me/IranChangeEuro','یورو'],['💵 کانال دلار','@IranChangeDolar','https://t.me/IranChangeDolar','دلار'],['🌍 سایر ارزها','@IranChangeGlobal','https://t.me/IranChangeGlobal','سایر'],['💬 گروه دیدگاه‌ها','@FastChangeArzGroup','https://t.me/FastChangeArzGroup',null]];
-    out=panel('📡 مرکز کانال‌ها و گروه ایران چنج','<p class="muted">هر بخش را جداگانه باز کنید. ورود به تلگرام فعال است؛ مدیریت مستقیم پیام‌های کانال و گروه هنوز به اتصال سرور نیاز دارد.</p><div class="grid">'+destinations.map(([name,handle,url,kind])=>'<div class="kv"><b>'+esc(name)+'</b><div class="muted">'+esc(handle)+'</div>'+(kind?'<div class="muted">'+fmt(ads.filter(a=>a.channel===kind).length)+' آگهی همگام‌شده</div>':'<div class="muted">دیدگاه‌ها و گفت‌وگوهای کاربران</div>')+'<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-section="'+esc(name)+'">ورود به بخش</button><a class="btn" href="'+url+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none">بازکردن تلگرام ↗</a></div></div>').join('')+'</div>');
-  }
-  else if(['🇪🇺 کانال یورو','💵 کانال دلار','🌍 سایر ارزها','💬 گروه دیدگاه‌ها'].includes(section)){
-    const config={'🇪🇺 کانال یورو':['یورو','@IranChangeEuro','https://t.me/IranChangeEuro'],'💵 کانال دلار':['دلار','@IranChangeDolar','https://t.me/IranChangeDolar'],'🌍 سایر ارزها':['سایر','@IranChangeGlobal','https://t.me/IranChangeGlobal'],'💬 گروه دیدگاه‌ها':[null,'@FastChangeArzGroup','https://t.me/FastChangeArzGroup']}[section];
-    const [kind,handle,url]=config;
-    out=panel('📡 '+esc(section),'<div class="muted">نشانی رسمی: '+esc(handle)+'</div><div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn primary" href="'+url+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none">📲 ورود به تلگرام</a><button class="btn" data-section="کانال‌ها">بازگشت به مرکز کانال‌ها</button></div>');
-    if(kind){const items=ads.filter(a=>a.channel===kind);out+=panel('📋 آگهی‌های همگام‌شده این کانال',adsLoaded?adRows(items):'<div class="empty">'+esc(adsError||'در حال دریافت اطلاعات...')+'</div>');}
-    else out+=panel('💬 مدیریت گروه','<div class="notice">برای مشاهده و مدیریت پیام‌های گروه داخل این اپ، باید دسترسی مناسب ربات و API مدیریت گروه به سرور اضافه شود. در حال حاضر می‌توانید گروه را مستقیم در تلگرام باز کنید.</div>');
-  }
-else if(section==='گزارش‌ها'){out=panel('📊 گزارش آگهی‌ها',row('کل آگهی‌ها',fmt(ads.length))+row('فعال',fmt(ads.filter(a=>a.status==='فعال').length))+row('غیرفعال',fmt(ads.filter(a=>a.status==='بسته').length))+row('یورو',fmt(ads.filter(a=>a.channel==='یورو').length))+row('دلار',fmt(ads.filter(a=>a.channel==='دلار').length)))+panel('📩 گزارش پیشنهادها',offersLoaded?offerSummary():'<div class="empty">'+esc(offersError||'در حال دریافت...')+'</div>')+panel('💬 گزارش مکالمات',conversationsLoaded?conversationSummary():'<div class="empty">'+esc(conversationsError||'در حال دریافت...')+'</div>');}
- else if(section==='پرونده'){const a=ads.find(x=>x.id===selected);out=a?panel('📄 پرونده آگهی #'+fmt(a.id),'<div class="grid">'+[['نوع و مقدار',esc(a.type)+' • '+fmt(a.amount)+' '+esc(a.currency)],['قیمت',fmt(a.price)+' تومان'],['روش انتقال',esc(a.method)],['کشور',esc(a.country||'ثبت نشده')],['وضعیت',badge(a.status)],['تاریخ ثبت',esc(a.created||'ثبت نشده')]].map(x=>'<div class="kv"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div>')+panel('📩 پیشنهادهای این آگهی',offersLoaded?offerRows(offers.filter(o=>o.adId===a.id)):'<div class="empty">'+esc(offersError||'در حال دریافت...')+'</div>')+panel('💬 مکالمات این آگهی',conversationsLoaded?conversationRows(conversations.filter(c=>c.adId===a.id)):'<div class="empty">'+esc(conversationsError||'در حال دریافت...')+'</div>')+'<button class="btn primary" data-section="آگهی‌ها">بازگشت به آگهی‌ها</button>':panel('پرونده','آگهی پیدا نشد.');}
- else{out=panel('⏳ '+esc(section),'<div class="empty">این بخش هنوز به داده‌های واقعی ربات متصل نشده و در مرحله بعد فعال می‌شود.</div>');}
- el('main').innerHTML=out;if(section==='آگهی‌ها')el('adSearch').addEventListener('input',e=>{filter=e.target.value;renderList();});
+const API='https://iran-change-admin.onrender.com',MIN_VISIBLE_AD_ID=2512,el=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=v=>v===null||v===undefined||v===''?'—':Number.isFinite(Number(v))?Number(v).toLocaleString('fa-IR'):esc(v);
+const state={ads:[],offers:[],conversations:[],deals:[],loaded:{},errors:{},archived:false,adQuery:'',offerFilter:'all',conversationFilter:'all',dealFilter:'all',adminKey:'',actions:[],support:[],supportLoaded:false,supportUser:null,supportNotice:'',mcAgreements:[],mcThreads:[],mcMessages:[],mcAgreement:null,mcThread:null,mcError:'',notice:''};
+const titles={home:'خانه',ads:'آگهی‌ها',offers:'پیشنهادها',conversations:'مکالمات',deals:'توافق‌ها',channels:'کانال‌ها',support:'پشتیبانی',activities:'فعالیت‌ها',reports:'گزارش‌ها',documents:'مدارک',finance:'امور مالی',more:'بیشتر',ad:'پرونده آگهی',offer:'پرونده پیشنهاد',conversation:'پرونده مکالمه',deal:'پرونده توافق',channel:'کانال'};
+const routes={home:'خانه',deals:'معاملات',support:'پیام‌ها',more:'بیشتر'};
+const panel=(title,body)=>`<section class="panel"><h2>${title}</h2>${body}</section>`;
+const row=(a,b)=>`<div class="row"><div>${a}</div><div>${b}</div></div>`;
+const tag=(text,kind='')=>`<span class="tag ${kind}">${esc(text)}</span>`;
+const button=(text,route,cls='')=>`<button class="btn ${cls}" data-route="${esc(route)}">${text}</button>`;
+const kv=(label,value)=>`<div class="kv"><span>${esc(label)}</span><b>${value}</b></div>`;
+const empty=msg=>`<div class="empty">${esc(msg)}</div>`;
+const adStatus=s=>String(s).toLowerCase()==='active'?'فعال':String(s).toLowerCase()==='closed'?'بسته':String(s||'نامشخص');
+const offerStatus=s=>({accepted:'پذیرفته‌شده',pending:'در انتظار',rejected:'ردشده',closed:'بسته'}[s]||s||'نامشخص');
+const conversationStatus=s=>({active:'فعال',open:'فعال',closed:'بسته',paused:'متوقف'}[s]||s||'نامشخص');
+const dealStatus=s=>({agreed:'توافق‌شده',completed:'تکمیل‌شده',admin_review:'بررسی مدیر',cancelled:'لغوشده',awaiting_confirmation:'منتظر تأیید'}[s]||s||'نامشخص');
+function current(){const raw=decodeURIComponent(location.hash.slice(1)||'home');const [page,id]=raw.split('/');return {page:titles[page]?page:'home',id:id||''};}
+const positions=new Map();let lastRoute='';
+function route(page,id){const key=page+(id?'/'+id:'');if(location.hash.slice(1)===key)return;positions.set(location.hash.slice(1)||'home',window.scrollY);location.hash=encodeURIComponent(key);}
+function renderRoute(){const key=decodeURIComponent(location.hash.slice(1)||'home');const {page,id}=current();const restore=positions.get(key);const goingBack=key!==lastRoute&&restore!==undefined;lastRoute=key;el('main').innerHTML=page==='home'?home():page==='ads'?adsPage():page==='offers'?offersPage():page==='conversations'?conversationsPage():page==='deals'?dealsPage():page==='ad'?adPage(id):page==='offer'?offerPage(id):page==='conversation'?conversationPage(id):page==='deal'?dealPage(id):page==='channels'?channelsPage():page==='channel'?channelPage(id):page==='support'?supportPage():page==='activities'?activitiesPage():page==='reports'?reportsPage():page==='more'?morePage():page==='documents'?placeholder('مدارک'):page==='finance'?placeholder('امور مالی'):home();
+ const nav=[['home','⌂','خانه'],['deals','🤝','معاملات'],['support','✉','پیام‌ها'],['more','☷','بیشتر']];el('bottom').innerHTML=nav.map(([p,icon,t])=>`<button data-route="${p}" class="${(page===p||page==='deal'&&p==='deals')?'active':''}"><span>${icon}</span>${t}</button>`).join('');
+ const q=el('adSearch');if(q)q.addEventListener('input',e=>{state.adQuery=e.target.value;el('adList').innerHTML=adRows(filteredAds());});
+ requestAnimationFrame(()=>window.scrollTo(0,goingBack?restore:0));
 }
-document.addEventListener('click',e=>{const c=e.target.closest('[data-conversation]');if(c){openConversation(Number(c.dataset.conversation));return;}const o=e.target.closest('[data-offer]');if(o){openOffer(Number(o.dataset.offer));return;}const a=e.target.closest('[data-ad]');if(a){openAd(Number(a.dataset.ad));return;}const of=e.target.closest('[data-offer-filter]');if(of){offerFilter=of.dataset.offerFilter;render();return;}const cf=e.target.closest('[data-conversation-filter]');if(cf){conversationFilter=cf.dataset.conversationFilter;render();return;}const n=e.target.closest('[data-section]');if(n)go(n.dataset.section);});
-async function loadCollection(path,field){const r=await fetch(API+path+'?_='+Date.now(),{cache:'no-store',headers:{Accept:'application/json'}});if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json();if(!Array.isArray(data[field]))throw Error('پاسخ معتبر نیست');return data[field];}
-async function refreshAll(){el('apiState').textContent='در حال دریافت';el('apiResult').textContent='در حال اتصال به Render...';const results=await Promise.allSettled([loadCollection('/ads','ads'),loadCollection('/offers','offers'),loadCollection('/conversations','conversations')]);
-if(results[0].status==='fulfilled'){ads=results[0].value.filter(a=>a&&Number.isFinite(Number(a.ad_id))&&visibleAdId(a.ad_id)).map(normalize);adsLoaded=true;adsError='';}else{adsError='دریافت آگهی‌ها ناموفق بود: '+String(results[0].reason?.message||results[0].reason);}
-if(results[1].status==='fulfilled'){offers=results[1].value.filter(o=>o&&Number.isFinite(Number(o.offer_id))&&Number.isFinite(Number(o.ad_id))&&visibleAdId(o.ad_id)).map(normalizeOffer);offersLoaded=true;offersError='';}else{offersError='دریافت پیشنهادها ناموفق بود: '+String(results[1].reason?.message||results[1].reason);}
-if(results[2].status==='fulfilled'){conversations=results[2].value.filter(c=>c&&Number.isInteger(Number(c.conversation_id))&&Number.isInteger(Number(c.ad_id))&&visibleAdId(c.ad_id)).map(normalizeConversation);conversationsLoaded=true;conversationsError='';}else{conversationsError='دریافت مکالمات ناموفق بود: '+String(results[2].reason?.message||results[2].reason);}
-el('total').textContent=adsLoaded?fmt(ads.length):'—';el('active').textContent=adsLoaded?fmt(ads.filter(a=>a.status==='فعال').length):'—';el('closed').textContent=adsLoaded?fmt(ads.length-ads.filter(a=>a.status==='فعال').length):'—';el('offerTotal').textContent=offersLoaded?fmt(offers.length):'—';el('conversationTotal').textContent=conversationsLoaded?fmt(conversations.length):'—';
-const failures=[adsError,offersError,conversationsError].filter(Boolean);el('apiState').textContent=failures.length?'اتصال ناقص':'اتصال برقرار';el('livePill').textContent=failures.length?'● اتصال ناقص':'● اطلاعات واقعی';el('apiResult').textContent=(adsLoaded?fmt(ads.length)+' آگهی':'آگهی‌ها نامشخص')+' • '+(offersLoaded?fmt(offers.length)+' پیشنهاد':'پیشنهادها نامشخص')+' • '+(conversationsLoaded?fmt(conversations.length)+' مکالمه':'مکالمات نامشخص')+(failures.length?' | '+failures.join(' | '):'')+' — آخرین اطلاعات ارسال‌شده به Render';render();}
-/* Deals: read-only view; no private Telegram identifiers are transferred. */
-let deals=[],dealsLoaded=false,dealsError='',dealFilter='all',selectedDeal=null;
-const dealLabels={completed:'تکمیل‌شده',admin_review:'بررسی مدیر',cancelled:'لغوشده',awaiting_confirmation:'منتظر تأیید'};
-const dealStatus=s=>dealLabels[s]||s||'نامشخص';
-function normalizeDeal(d){return {adId:Number(d.ad_id),offerId:Number(d.offer_id),ownerConfirmed:Number(d.owner_confirmed)===1,proposerConfirmed:Number(d.proposer_confirmed)===1,cancelRequested:Number(d.cancel_requested)===1,state:String(d.state||'').toLowerCase(),deadline:String(d.deadline||''),created:String(d.created_at||'')};}
-function dealRows(items){return items.length?items.map(d=>'<div class="row item" data-deal="'+deals.indexOf(d)+'"><div><b>توافق آگهی #'+fmt(d.adId)+'</b><div class="muted">پیشنهاد #'+fmt(d.offerId)+'</div><div class="muted">'+esc(d.created||'تاریخ نامشخص')+'</div></div><div style="text-align:left">'+badge(dealStatus(d.state))+'</div></div>').join(''):'<div class="empty">توافقی در این وضعیت وجود ندارد.</div>';}
-function dealSummary(){return row('کل توافق‌ها',fmt(deals.length))+row('تکمیل‌شده',fmt(deals.filter(d=>d.state==='completed').length))+row('بررسی مدیر',fmt(deals.filter(d=>d.state==='admin_review').length))+row('لغوشده',fmt(deals.filter(d=>d.state==='cancelled').length))+row('منتظر تأیید',fmt(deals.filter(d=>d.state==='awaiting_confirmation').length));}
-function renderDeals(){const options=[['all','همه'],['awaiting_confirmation','منتظر تأیید'],['admin_review','بررسی مدیر'],['completed','تکمیل‌شده'],['cancelled','لغوشده']];return panel('📊 خلاصه توافق‌ها',dealsLoaded?dealSummary():'<div class="empty">'+esc(dealsError||'در حال دریافت...')+'</div>')+panel('🤝 فهرست توافق‌های واقعی','<div class="offer-filters">'+options.map(([value,label])=>'<button data-deal-filter="'+value+'" class="'+(dealFilter===value?'active':'')+'">'+label+'</button>').join('')+'</div>'+(dealsLoaded?dealRows(deals.filter(d=>dealFilter==='all'||d.state===dealFilter)):'<div class="empty">'+esc(dealsError||'در حال دریافت...')+'</div>'));}
-function renderDealDetails(){const d=deals[selectedDeal];if(!d)return panel('پرونده توافق','<div class="empty">توافق پیدا نشد.</div>');const yesNo=v=>v?'<span class="tag good">✅ تأیید شده</span>':'<span class="tag bad">⏳ تأیید نشده</span>';const fields=[['شماره آگهی',fmt(d.adId)],['شماره پیشنهاد',fmt(d.offerId)],['وضعیت توافق',badge(dealStatus(d.state))],['تأیید صاحب آگهی',yesNo(d.ownerConfirmed)],['تأیید پیشنهاددهنده',yesNo(d.proposerConfirmed)],['درخواست لغو',d.cancelRequested?'ثبت شده':'ثبت نشده'],['مهلت تأیید',esc(d.deadline||'ثبت نشده')],['تاریخ ایجاد',esc(d.created||'ثبت نشده')]];return panel('📄 پرونده توافق آگهی #'+fmt(d.adId),'<div class="grid">'+fields.map(([label,value])=>'<div class="kv"><span>'+label+'</span><b>'+value+'</b></div>').join('')+'</div><div class="notice">این پرونده فقط برای مشاهده است. تغییر وضعیت معاملات از این صفحه فعال نیست.</div><button class="btn" data-section="توافق‌ها">بازگشت به توافق‌ها</button> '+(ads.some(a=>a.id===d.adId)?'<button class="btn primary" data-ad="'+d.adId+'">مشاهده آگهی مرتبط</button>':''));}
-const originalRender=render;
-render=function(){originalRender();if(section==='توافق‌ها'||section==='پرونده توافق')el('main').innerHTML=section==='توافق‌ها'?renderDeals():renderDealDetails();};
-document.addEventListener('click',function(e){const f=e.target.closest('[data-deal-filter]');if(f){dealFilter=f.dataset.dealFilter;render();e.stopPropagation();return;}const d=e.target.closest('[data-deal]');if(d){selectedDeal=Number(d.dataset.deal);go('پرونده توافق');e.stopPropagation();}},true);
-const originalRefreshAll=refreshAll;
-refreshAll=async function(){const [_,dealResult]=await Promise.allSettled([originalRefreshAll(),loadCollection('/deals','deals')]);if(dealResult.status==='fulfilled'){deals=dealResult.value.filter(d=>d&&Number.isInteger(Number(d.ad_id))&&Number.isInteger(Number(d.offer_id))&&visibleAdId(d.ad_id)).map(normalizeDeal);dealsLoaded=true;dealsError='';}else{dealsError='دریافت توافق‌ها ناموفق بود: '+String(dealResult.reason?.message||dealResult.reason);}el('apiResult').textContent+=(dealsLoaded?' • '+fmt(deals.length)+' توافق':' • '+dealsError);if(dealsError){el('apiState').textContent='اتصال ناقص';el('livePill').textContent='● اتصال ناقص';}render();};
-
-/* Iran Change - Admin access and action history */
-let adminKey = '';
-let adminActions = [];
-let adminMessage = 'برای ورود، رمز مدیریت Render را وارد کنید.';
-
-function adminHeaders() {
-  return {
-    'Accept': 'application/json',
-    'X-Admin-Key': adminKey
-  };
-}
-
-function renderAdminLogin() {
-  if (!adminKey) {
-    return panel('🔐 ورود مدیر',
-      '<p class="muted">رمز IRAN_CHANGE_ADMIN_KEY را وارد کنید. رمز داخل کد سایت ذخیره نمی‌شود.</p>' +
-      '<input id="adminPassword" type="password" class="search" autocomplete="off" placeholder="رمز اختصاصی مدیر">' +
-      '<button class="btn primary" id="adminLogin">ورود امن</button>' +
-      '<p class="muted">' + esc(adminMessage) + '</p>'
-    );
-  }
-
-  return panel('🔐 وضعیت مدیریت',
-    '<span class="tag good">مدیر تأیید شده</span>' +
-    '<p class="muted">دسترسی مشاهده سوابق مدیریتی فعال است.</p>' +
-    '<button class="btn" id="adminLogout">خروج از مدیریت</button>'
-  );
-}
-
-function renderAdminHistory() {
-  if (!adminKey) {
-    return '<div class="empty">برای مشاهده تاریخچه، ابتدا وارد شوید.</div>';
-  }
-
-  const names = {
-    review: 'ارجاع به بررسی مدیر',
-    cancel: 'لغو معامله',
-    complete: 'تکمیل معامله'
-  };
-
-  const items = adminActions.filter(a => visibleAdId(a.ad_id));
-
-  if (!items.length) {
-    return '<div class="empty">هنوز اقدام مدیریتی ثبت نشده است.</div>';
-  }
-
-  return items.map(a =>
-    '<div class="row">' +
-      '<div><b>آگهی #' + fmt(a.ad_id) + '</b>' +
-      '<div class="muted">پیشنهاد #' + fmt(a.offer_id) + '</div>' +
-      '<div class="muted">' + esc(a.created_at || '') + '</div>' +
-      '<div class="muted">دلیل: ' + esc(a.reason || 'ثبت نشده') + '</div></div>' +
-      '<div style="text-align:left">' +
-      '<b>' + esc(names[a.action] || a.action) + '</b>' +
-      '<div class="muted">' + esc(a.old_state) + ' ← ' + esc(a.new_state) + '</div>' +
-      '</div></div>'
-  ).join('');
-}
-
-async function fetchAdminHistory() {
-  if (!adminKey) return;
-
-  try {
-    const response = await fetch(API + '/admin/actions', {
-      method: 'GET',
-      headers: adminHeaders(),
-      cache: 'no-store'
-    });
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        adminKey = '';
-        adminMessage = 'اعتبار ورود پایان یافته یا رمز صحیح نیست.';
-      }
-      throw Error('HTTP ' + response.status);
-    }
-
-    const result = await response.json();
-    adminActions = Array.isArray(result.actions) ? result.actions : [];
-    adminMessage = 'تاریخچه دریافت شد.';
-  } catch (error) {
-    adminMessage = 'خطا در دریافت تاریخچه: ' + error.message;
-  }
-}
-
-async function adminLogin() {
-  const input = document.getElementById('adminPassword');
-  const candidate = input ? input.value.trim() : '';
-
-  if (!candidate) {
-    adminMessage = 'رمز مدیریت را وارد کنید.';
-    render();
-    return;
-  }
-
-  try {
-    const response = await fetch(API + '/admin/verify', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'X-Admin-Key': candidate
-      },
-      cache: 'no-store'
-    });
-
-    if (!response.ok) {
-      adminMessage = 'رمز صحیح نیست یا سرور آماده نیست.';
-      render();
-      return;
-    }
-
-    adminKey = candidate;
-    adminMessage = 'ورود موفق بود.';
-    await fetchAdminHistory();
-    render();
-  } catch (error) {
-    adminMessage = 'اتصال مدیریت برقرار نشد: ' + error.message;
-    render();
-  }
-}
-
-const renderBeforeAdmin = render;
-
-render = function() {
-  renderBeforeAdmin();
-
-  if (section === 'فعالیت‌ها') {
-    el('main').innerHTML =
-      renderAdminLogin() +
-      panel('📜 تاریخچه اقدامات مدیر', renderAdminHistory());
-  }
-
-  if (section === 'پرونده توافق') {
-    const d = deals[selectedDeal];
-
-    if (d) {
-      el('main').innerHTML += panel('🛡️ نظارت بر معامله',
-        row('تأیید صاحب آگهی', d.ownerConfirmed ? '✅ ثبت شده' : '⏳ ثبت نشده') +
-        row('تأیید پیشنهاددهنده', d.proposerConfirmed ? '✅ ثبت شده' : '⏳ ثبت نشده') +
-        row('درخواست لغو', d.cancelRequested ? '⚠️ وجود دارد' : 'ثبت نشده') +
-        '<div class="notice">ثبت لغو، تکمیل و بازگشایی آگهی تا اتصال وضعیت داخلی ربات به سرور غیرفعال است.</div>' +
-        '<button class="btn" data-section="فعالیت‌ها">مشاهده تاریخچه مدیریت</button>'
-      );
-    }
-  }
-};
-
-document.addEventListener('click', async function(event) {
-  if (event.target.closest('#adminLogin')) {
-    await adminLogin();
-  }
-
-  if (event.target.closest('#adminLogout')) {
-    adminKey = '';
-    adminActions = [];
-    adminMessage = 'از مدیریت خارج شدید.';
-    render();
-  }
-});
-
-document.addEventListener('keydown', function(event) {
-  if (event.key === 'Enter' &&
-      event.target.id === 'adminPassword') {
-    adminLogin();
-  }
-});
-
-/* Support center: admin-only, text replies through Telegram outbox. */
-let supportMessages=[],supportLoaded=false,supportError='',supportSelected=null,supportSending=false,supportNotice='';
-function supportDate(v){if(!v)return 'زمان نامشخص';const d=new Date(v);return Number.isNaN(d.getTime())?esc(v):esc(d.toLocaleString('fa-IR'));}
-function supportGroups(){const m=new Map();for(const x of supportMessages){const id=String(x.user_id??'');if(!/^\d+$/.test(id))continue;if(!m.has(id))m.set(id,[]);m.get(id).push(x);}return [...m.entries()].sort((a,b)=>Math.max(...b[1].map(x=>Number(x.id)||0))-Math.max(...a[1].map(x=>Number(x.id)||0)));}
-function renderSupport(){
- if(!adminKey)return renderAdminLogin()+panel('💬 پشتیبانی','<div class="empty">برای مشاهده پیام‌های خصوصی کاربران ابتدا وارد مدیریت شوید.</div>');
- const groups=supportGroups();
- let out=panel('💬 مرکز پشتیبانی', '<div class="muted">پیام‌های دریافتی از ربات ایران چنج؛ پاسخ متنی از طریق ربات ارسال می‌شود.</div><div style="margin-top:12px"><button class="btn primary" id="supportRefresh">🔄 دریافت پیام‌ها</button></div>'+(supportError?'<div class="notice">'+esc(supportError)+'</div>':'')+(supportNotice?'<div class="notice">'+esc(supportNotice)+'</div>':''));
- if(!supportLoaded)return out+panel('گفتگوها','<div class="empty">برای بارگذاری، «دریافت پیام‌ها» را بزنید.</div>');
- out+=panel('👥 گفتگوهای کاربران ('+fmt(groups.length)+')',groups.length?groups.map(([uid,msgs])=>{const last=msgs.slice().sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0))[0];return '<div class="row item" data-support-user="'+esc(uid)+'"><div><b>کاربر '+esc(uid)+'</b><div class="muted">'+esc(String(last.body||last.file_name||({'photo':'عکس','document':'سند'}[last.kind]||'پیام')).slice(0,90))+'</div><div class="muted">'+supportDate(last.created_at)+'</div></div><span class="tag">'+fmt(msgs.length)+' پیام</span></div>';}).join(''):'<div class="empty">هنوز پیام پشتیبانی ثبت نشده است.</div>');
- if(supportSelected&&groups.some(([id])=>id===supportSelected)){
- const msgs=groups.find(([id])=>id===supportSelected)[1].slice().sort((a,b)=>(Number(a.id)||0)-(Number(b.id)||0));
- const history=msgs.map(x=>'<div class="kv" style="margin:8px 0;overflow-wrap:anywhere"><span>'+((x.direction==='incoming')?'📩 کاربر':'📤 مدیر')+' • '+supportDate(x.created_at)+'</span><div style="white-space:pre-wrap;line-height:1.9">'+esc(x.body||'')+'</div>'+(x.kind==='photo'?'<div class="muted">📷 عکس دریافت شده (نمایش فایل هنوز فعال نیست)</div>':x.kind==='document'?'<div class="muted">📎 '+esc(x.file_name||'سند دریافت شده')+' (دانلود هنوز فعال نیست)</div>':'')+'</div>').join('');
- out+=panel('📨 گفتگو با کاربر '+esc(supportSelected),history+'<label for="supportReply" class="muted">پاسخ مدیر</label><textarea id="supportReply" class="search" rows="4" maxlength="4000" style="resize:vertical;white-space:pre-wrap" placeholder="متن پاسخ را بنویسید..."></textarea><button class="btn primary" id="supportSend" '+(supportSending?'disabled':'')+'>📤 ثبت پاسخ برای ارسال در تلگرام</button><p class="muted">ثبت پاسخ به معنی تحویل قطعی نیست؛ ربات باید آن را ارسال کند.</p>');
- }
- return out;
-}
-async function fetchSupportMessages(){
- if(!adminKey)return;
- supportError='';
- try{const r=await fetch(API+'/admin/support/messages?_='+Date.now(),{headers:adminHeaders(),cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json();if(!Array.isArray(data.messages))throw Error('پاسخ سرور نامعتبر است');supportMessages=data.messages;supportLoaded=true;}
- catch(e){supportError='دریافت پیام‌ها ناموفق بود: '+e.message;}
- if(section==='💬 پشتیبانی')render();
-}
-async function sendSupportReply(){
- if(!adminKey||!supportSelected||supportSending)return;
- const field=el('supportReply');const body=field?.value.trim()||'';
- if(!body){supportNotice='ابتدا متن پاسخ را وارد کنید.';render();return;}
- if(!/^\d+$/.test(supportSelected)){supportNotice='شناسه کاربر نامعتبر است.';render();return;}
- supportSending=true;supportNotice='';
- const button=el('supportSend');if(button)button.disabled=true;
- try{const r=await fetch(API+'/admin/support/reply',{method:'POST',headers:{...adminHeaders(),'Content-Type':'application/json'},body:JSON.stringify({user_id:Number(supportSelected),body})});if(!r.ok)throw Error('HTTP '+r.status);supportNotice='پاسخ در صف ارسال ربات ثبت شد. برای اطمینان از تحویل، تلگرام و وضعیت ربات را بررسی کنید.';}
- catch(e){supportNotice='ثبت پاسخ ناموفق بود: '+e.message+'؛ متن خود را نگه دارید.';supportSending=false;if(button)button.disabled=false;return;}
- supportSending=false;render();
-}
-const renderBeforeSupport=render;
-render=function(){renderBeforeSupport();if(section==='💬 پشتیبانی')el('main').innerHTML=renderSupport();};
-const goBeforeSupport=go;
-go=function(s){goBeforeSupport(s);if(s==='💬 پشتیبانی'&&adminKey)fetchSupportMessages();};
-const loginBeforeSupport=adminLogin;
-adminLogin=async function(){await loginBeforeSupport();if(adminKey&&section==='💬 پشتیبانی')await fetchSupportMessages();};
-document.addEventListener('click',async e=>{
- const u=e.target.closest('[data-support-user]');if(u){supportSelected=u.dataset.supportUser;supportNotice='';render();return;}
- if(e.target.closest('#supportRefresh')){await fetchSupportMessages();return;}
- if(e.target.closest('#supportSend')){await sendSupportReply();}
-});
-
-
-/* Mini-chat admin panel: separate owner/proposer threads, no participant WebApp yet. */
-let mcAgreements=[],mcAgreementId=null,mcThreads=[],mcThreadId=null,mcMessages=[];
-let mcLoading=false,mcSending=false,mcNotice='',mcError='';
-async function mcFetch(path,options={}){
- if(!adminKey)throw Error('ابتدا وارد مدیریت شوید.');
- const r=await fetch(API+path,{cache:'no-store',...options,headers:{...adminHeaders(),...(options.body?{'Content-Type':'application/json'}:{})}});
- const data=await r.json().catch(()=>({}));
- if(!r.ok)throw Error(r.status===401?'دسترسی مدیریت تأیید نشد.':(data.error||'HTTP '+r.status));
- return data;
-}
-async function mcLoadAgreements(){
- if(!adminKey)return;
- mcLoading=true;mcError='';render();
- try{const d=await mcFetch('/admin/minichat/agreements');mcAgreements=Array.isArray(d.agreements)?d.agreements:[];}
- catch(e){mcError=String(e.message||e);}finally{mcLoading=false;render();}
-}
-async function mcOpenDeal(){
- mcAgreementId=null;mcThreadId=null;mcThreads=[];mcMessages=[];mcNotice='';
- if(!adminKey)return render();
- await mcLoadAgreements();
- const d=deals[selectedDeal];if(!d)return;
- const match=mcAgreements.find(a=>Number(a.ad_id)===d.adId&&Number(a.offer_id)===d.offerId);
- if(match){mcAgreementId=Number(match.agreement_id);await mcLoadThreads();}else render();
-}
-async function mcLoadThreads(){
- if(!mcAgreementId)return;
- mcLoading=true;mcError='';render();
- try{const d=await mcFetch('/admin/minichat/threads/'+mcAgreementId);mcThreads=Array.isArray(d.threads)?d.threads:[];}
- catch(e){mcError=String(e.message||e);}finally{mcLoading=false;render();}
-}
-async function mcOpenThread(id){
- mcThreadId=id;mcMessages=[];mcNotice='';mcLoading=true;mcError='';render();
- try{const d=await mcFetch('/admin/minichat/messages/'+id);mcMessages=Array.isArray(d.messages)?d.messages:[];}
- catch(e){mcError=String(e.message||e);}finally{mcLoading=false;render();}
-}
-function mcRender(){
- if(!adminKey)return panel('💬 گفت‌وگوهای خصوصی توافق','<div class="notice">برای دیدن گفت‌وگوها ابتدا وارد مدیریت شوید.</div>');
- const d=deals[selectedDeal];if(!d)return '';
- let content='<div class="muted">گفت‌وگوهای مدیر با صاحب آگهی و پیشنهاددهنده کاملاً جدا هستند.</div>';
- if(mcLoading)content+='<div class="muted">در حال دریافت اطلاعات...</div>';
- if(mcError)content+='<div class="notice">خطا: '+esc(mcError)+'</div>';
- if(mcNotice)content+='<div class="notice">'+esc(mcNotice)+'</div>';
- if(!mcAgreementId){
-  content+='<div class="notice">برای این توافق هنوز پرونده مینی‌چت ثبت نشده است. ساخت پرونده باید پس از تأیید طرفین توسط ربات انجام شود.</div>';
- }else{
-  const agreement=mcAgreements.find(a=>Number(a.agreement_id)===mcAgreementId);
-  content+='<div class="muted">شماره پرونده گفت‌وگو: '+fmt(mcAgreementId)+' | وضعیت: '+esc(agreement?.status||'نامشخص')+'</div>';
-  content+='<div class="offer-filters">'+[['owner','👤 گفت‌وگو با صاحب آگهی'],['proposer','🤝 گفت‌وگو با پیشنهاددهنده']].map(([role,label])=>{
-   const t=mcThreads.find(t=>t.participant_role===role);
-   return '<button type="button" '+(t?'data-mc-thread="'+Number(t.thread_id)+'"':'disabled')+' class="'+(t&&Number(t.thread_id)===mcThreadId?'active':'')+'">'+label+(t?'':' (هنوز ساخته نشده)')+'</button>';
-  }).join('')+'</div>';
-  if(mcThreadId){
-   content+='<div style="max-height:350px;overflow:auto;padding:12px;border:1px solid #34435e;border-radius:14px;margin:12px 0">';
-   content+=mcMessages.length?mcMessages.map(m=>'<div style="margin:9px 0;padding:10px;border-radius:12px;background:'+(m.sender_role==='admin'?'#27334e':'#18283b')+'"><b>'+(m.sender_role==='admin'?'مدیر':'کاربر')+'</b><div style="white-space:pre-wrap;overflow-wrap:anywhere">'+esc(m.message_text||('[پیام '+String(m.message_type||'فایل')+']'))+'</div><small class="muted">'+esc(m.created_at||'')+'</small></div>').join(''):'<div class="muted">هنوز پیامی ثبت نشده است.</div>';
-   content+='</div>';
-   if(agreement?.status==='active')content+='<textarea id="mcText" rows="3" maxlength="4000" placeholder="پیام مدیر را بنویسید..." style="width:100%;box-sizing:border-box;border-radius:12px;padding:12px;background:#111d32;color:#fff;border:1px solid #42516c"></textarea><div style="margin-top:10px"><button class="btn primary" id="mcSend" '+(mcSending?'disabled':'')+'>ارسال پیام متنی</button> <button class="btn" id="mcRefresh">به‌روزرسانی پیام‌ها</button></div>';
-   else content+='<div class="notice">این توافق فعال نیست؛ ارسال پیام غیرفعال است.</div>';
-  }
- }
- return panel('💬 گفت‌وگوهای خصوصی توافق',content);
-}
-async function mcSendMessage(){
- if(mcSending||!mcThreadId)return;
- const input=el('mcText');const message=(input?.value||'').trim();if(!message)return;
- mcSending=true;mcNotice='';
- try{await mcFetch('/admin/minichat/send',{method:'POST',body:JSON.stringify({thread_id:mcThreadId,message_text:message})});await mcOpenThread(mcThreadId);mcNotice='پیام در دیتابیس ثبت شد؛ ارسال به تلگرام کاربر هنوز فعال نیست.';}
- catch(e){mcError=String(e.message||e);}finally{mcSending=false;render();}
-}
-const mcPreviousRender=render;
-render=function(){mcPreviousRender();if(section==='پرونده توافق')el('main').insertAdjacentHTML('beforeend',mcRender());};
-const mcPreviousGo=go;
-go=function(s){mcPreviousGo(s);if(s==='پرونده توافق')mcOpenDeal();};
-const mcPreviousLogin=adminLogin;
-adminLogin=async function(){await mcPreviousLogin();if(adminKey&&section==='پرونده توافق')mcOpenDeal();};
-document.addEventListener('click',async e=>{
- const t=e.target.closest('[data-mc-thread]');if(t){await mcOpenThread(Number(t.dataset.mcThread));return;}
- if(e.target.closest('#mcSend')){await mcSendMessage();return;}
- if(e.target.closest('#mcRefresh')&&mcThreadId){await mcOpenThread(mcThreadId);return;}
-});
-
-render();refreshAll();
-if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(()=>{});}
-</script>
-</body></html>
+function head(title){return `<div class="heading"><button class="back" data-back="1" aria-label="بازگشت">❯</button><h1>${esc(title)}</h1></div>`;}
+function statusText(){const errors=Object.values(state.errors).filter(Boolean);return errors.length?'● اتصال ناقص':'● اطلاعات واقعی';}
+function stat(label,value){return `<div class="stat"><small>${label}</small><b>${fmt(value)}</b></div>`;}
+function tile(icon,title,detail,page){return `<button class="tile" data-route="${page}"><div style="font-size:23px">${icon}</div><strong>${title}</strong><span>${detail}</span></button>`;}
+function home(){return `<div class="hero"><h1>داشبورد مدیریت ✨</h1><p>همه فعالیت‌های مهم ایران چنج، بدون شلوغی و اسکرول بی‌پایان.</p></div><div class="stats">${stat('آگهی‌ها',state.ads.length)}${stat('فعال',state.ads.filter(a=>adStatus(a.status)==='فعال').length)}${stat('پیشنهادها',state.offers.length)}${stat('مکالمات',state.conversations.length)}${stat('توافق‌ها',state.deals.length)}</div>${panel('دسترسی سریع',`<div class="tiles">${tile('📣','آگهی‌ها','فهرست و جستجو','ads')}${tile('📩','پیشنهادها','وضعیت پیشنهادها','offers')}${tile('🤝','توافق‌ها','پرونده معاملات','deals')}${tile('💬','مکالمات','گفتگوهای ربات','conversations')}${tile('📡','کانال‌ها','یورو، دلار و سایر','channels')}${tile('🛟','پشتیبانی','پیام‌های کاربران','support')}${tile('📊','گزارش‌ها','آمار فعالیت','reports')}${tile('⚙️','مدیریت','ورود و فعالیت‌ها','activities')}</div>`)}${panel('اتصال و داده‌ها',`<div class="muted" id="connectionInfo">${esc(Object.values(state.errors).filter(Boolean).join(' | ')||'نمایش آخرین داده‌های همگام‌سازی‌شده با Render')}</div><div class="actions"><button class="btn primary" id="refresh">🔄 به‌روزرسانی</button><button class="btn" id="archive">${state.archived?'مخفی‌کردن سوابق قدیمی':'📂 نمایش سوابق قدیمی'}</button></div><div class="muted">سوابق قدیمی حذف نشده‌اند؛ به‌صورت پیش‌فرض فقط آگهی‌های ۲۵۱۲ به بعد نمایش داده می‌شوند.</div>`)}`;}
+function adRows(items){return items.length?items.map(a=>`<div class="row item" data-route="ad/${a.ad_id}"><div><b>حواله ${fmt(a.ad_id)}</b><div class="muted">${esc(a.trade_type)} • ${fmt(a.amount)} ${esc(a.currency)}</div><div class="muted">${esc(a.method)} • ${esc(a.country)}</div></div><div style="text-align:left"><div class="value">${fmt(a.price)} تومان</div><div style="margin-top:7px">${tag(adStatus(a.status))}</div></div></div>`).join(''):empty('آگهی‌ای یافت نشد.');}
+function filteredAds(){const q=state.adQuery.trim().toLowerCase();return state.ads.filter(a=>[a.ad_id,a.trade_type,a.currency,a.method,a.country,a.status].some(v=>String(v??'').toLowerCase().includes(q)));}
+function adsPage(){return head('آگهی‌ها')+panel('جستجوی آگهی',`<input id="adSearch" class="search" placeholder="شماره حواله، ارز، کشور، روش انتقال..." value="${esc(state.adQuery)}"><div id="adList">${adRows(filteredAds())}</div>`);}
+function offerRows(items){return items.length?items.map(o=>`<div class="row item" data-route="offer/${o.offer_id}"><div><b>پیشنهاد ${fmt(o.offer_id)}</b><div class="muted">حواله ${fmt(o.ad_id)} • ${esc(o.created_at||'')}</div></div><div style="text-align:left"><div class="value">${fmt(o.proposed_price)} تومان</div>${tag(offerStatus(o.status))}</div></div>`).join(''):empty('پیشنهادی یافت نشد.');}
+function filters(type,options,selected){return `<div class="filters">${options.map(([v,t])=>`<button data-filter="${type}:${v}" class="${selected===v?'active':''}">${t}</button>`).join('')}</div>`;}
+function offersPage(){return head('پیشنهادها')+panel('فهرست پیشنهادها',filters('offer',[['all','همه'],['pending','در انتظار'],['accepted','پذیرفته‌شده'],['rejected','ردشده']],state.offerFilter)+offerRows(state.offers.filter(o=>state.offerFilter==='all'||o.status===state.offerFilter)));}
+function conversationRows(items){return items.length?items.map(c=>`<div class="row item" data-route="conversation/${c.conversation_id}"><div><b>مکالمه ${fmt(c.conversation_id)}</b><div class="muted">حواله ${fmt(c.ad_id)}</div><div class="muted">${esc(c.updated_at||c.created_at||'')}</div></div>${tag(conversationStatus(c.status))}</div>`).join(''):empty('مکالمه‌ای یافت نشد.');}
+function conversationsPage(){return head('مکالمات')+panel('فهرست مکالمات',filters('conversation',[['all','همه'],['active','فعال'],['closed','بسته‌شده']],state.conversationFilter)+conversationRows(state.conversations.filter(c=>state.conversationFilter==='all'||(state.conversationFilter==='active'?['active','open'].includes(c.status):c.status===state.conversationFilter))));}
+function dealRows(items){return items.length?items.map(d=>`<div class="row item" data-route="deal/${d.ad_id}"><div><b>توافق حواله ${fmt(d.ad_id)}</b><div class="muted">پیشنهاد ${fmt(d.offer_id)} • ${esc(d.created_at||'')}</div></div>${tag(dealStatus(d.state))}</div>`).join(''):empty('توافقی یافت نشد.');}
+function dealsPage(){return head('توافق‌ها')+panel('مدیریت توافق‌ها',filters('deal',[['all','همه'],['agreed','توافق‌شده'],['awaiting_confirmation','منتظر تأیید'],['admin_review','بررسی مدیر'],['completed','تکمیل‌شده'],['cancelled','لغوشده']],state.dealFilter)+dealRows(state.deals.filter(d=>state.dealFilter==='all'||d.state===state.dealFilter)));}
+function adPage(id){const a=state.ads.find(x=>String(x.ad_id)===id);if(!a)return head('پرونده آگهی')+empty('آگهی یافت نشد.');return head('پرونده حواله '+fmt(id))+panel('مشخصات آگهی',`<div class="kvgrid">${[['نوع',a.trade_type],['ارز',a.currency],['مقدار',fmt(a.amount)],['نرخ',fmt(a.price)+' تومان'],['روش انتقال',a.method],['کشور',a.country],['وضعیت',adStatus(a.status)],['تاریخ',a.created_at]].map(([k,v])=>kv(k,esc(v))).join('')}</div>`)+panel('پیشنهادهای مرتبط',offerRows(state.offers.filter(o=>String(o.ad_id)===id)))+panel('مکالمات مرتبط',conversationRows(state.conversations.filter(c=>String(c.ad_id)===id)))+panel('توافق مرتبط',dealRows(state.deals.filter(d=>String(d.ad_id)===id)));}
+function offerPage(id){const o=state.offers.find(x=>String(x.offer_id)===id);return head('پرونده پیشنهاد')+(o?panel('جزئیات',`<div class="kvgrid">${kv('شماره پیشنهاد',fmt(o.offer_id))}${kv('حواله',fmt(o.ad_id))}${kv('نرخ',fmt(o.proposed_price)+' تومان')}${kv('وضعیت',offerStatus(o.status))}${kv('تاریخ',esc(o.created_at||''))}</div><div class="actions">${button('مشاهده آگهی','ad/'+o.ad_id,'primary')}</div>`):empty('پیشنهاد پیدا نشد.'));}
+function conversationPage(id){const c=state.conversations.find(x=>String(x.conversation_id)===id);return head('پرونده مکالمه')+(c?panel('اطلاعات کلی',`<div class="kvgrid">${kv('شناسه مکالمه',fmt(c.conversation_id))}${kv('حواله',fmt(c.ad_id))}${kv('وضعیت',conversationStatus(c.status))}${kv('تاریخ',esc(c.created_at||''))}${kv('آخرین فعالیت',esc(c.updated_at||''))}</div><div class="notice">متن خصوصی مکالمات به این بخش منتقل نشده است.</div>${button('مشاهده آگهی','ad/'+c.ad_id,'primary')}`):empty('مکالمه یافت نشد.'));}
+function dealPage(id){const d=state.deals.find(x=>String(x.ad_id)===id);if(!d)return head('پرونده توافق')+empty('توافق یافت نشد.');return head('توافق حواله '+fmt(id))+panel('مشخصات توافق',`<div class="kvgrid">${kv('حواله',fmt(d.ad_id))}${kv('پیشنهاد',fmt(d.offer_id))}${kv('وضعیت',dealStatus(d.state))}${kv('تأیید صاحب آگهی',Number(d.owner_confirmed)===1?'بله':'خیر')}${kv('تأیید پیشنهاددهنده',Number(d.proposer_confirmed)===1?'بله':'خیر')}${kv('درخواست لغو',d.cancel_requested?'ثبت شده':'ثبت نشده')}${kv('مهلت',esc(d.deadline||''))}${kv('تاریخ',esc(d.created_at||''))}</div><div class="notice">تغییر وضعیت معامله در این نسخه فعال نیست. داده‌های اصلی تغییر نمی‌کنند.</div><div class="actions">${button('مشاهده آگهی','ad/'+d.ad_id,'primary')}<button class="btn" id="mcOpen">گفت‌وگوهای مینی‌چت (قدیمی)</button></div>`)+mcPanel();}
+const destinations=[['یورو','@IranChangeEuro','https://t.me/IranChangeEuro'],['دلار','@IranChangeDolar','https://t.me/IranChangeDolar'],['سایر','@IranChangeGlobal','https://t.me/IranChangeGlobal'],['دیدگاه‌ها','@FastChangeArzGroup','https://t.me/FastChangeArzGroup']];
+function channelsPage(){return head('کانال‌ها')+panel('کانال‌های ایران چنج',destinations.map(([name,handle,url])=>row(`<b>${esc(name)}</b><div class="muted">${esc(handle)}</div>`,`<button class="btn" data-route="channel/${encodeURIComponent(name)}">مشاهده</button>`)).join(''));}
+function channelPage(id){const name=decodeURIComponent(id),d=destinations.find(x=>x[0]===name);if(!d)return head('کانال')+empty('کانال یافت نشد.');const matches=state.ads.filter(a=>name==='یورو'?/یورو|EUR/i.test(a.currency):name==='دلار'?/دلار|USD/i.test(a.currency):name==='سایر'?!/یورو|EUR|دلار|USD/i.test(a.currency):false);return head('کانال '+name)+panel('اطلاعات کانال',`<div class="muted">${esc(d[1])}</div><div class="actions"><a class="btn primary" target="_blank" rel="noopener noreferrer" href="${d[2]}">باز کردن در تلگرام</a></div>`)+(name==='دیدگاه‌ها'?'':panel('آگهی‌های مرتبط',adRows(matches)));}
+function reportsPage(){return head('گزارش‌ها')+panel('آگهی‌ها',row('کل آگهی‌ها',fmt(state.ads.length))+row('فعال',fmt(state.ads.filter(a=>adStatus(a.status)==='فعال').length))+row('بسته',fmt(state.ads.filter(a=>adStatus(a.status)==='بسته').length)))+panel('پیشنهادها',row('کل',fmt(state.offers.length))+row('در انتظار',fmt(state.offers.filter(o=>o.status==='pending').length))+row('پذیرفته‌شده',fmt(state.offers.filter(o=>o.status==='accepted').length)))+panel('مکالمات و توافق‌ها',row('مکالمات',fmt(state.conversations.length))+row('توافق‌ها',fmt(state.deals.length)));}
+function morePage(){return head('بخش‌های مدیریت')+`<div class="tiles">${tile('📣','آگهی‌ها','مدیریت آگهی','ads')}${tile('📩','پیشنهادها','فهرست پیشنهاد','offers')}${tile('💬','مکالمات','گفتگوهای ربات','conversations')}${tile('📡','کانال‌ها','کانال‌ها و گروه','channels')}${tile('📂','مدارک','هنوز متصل نیست','documents')}${tile('💰','امور مالی','هنوز متصل نیست','finance')}${tile('📜','فعالیت‌ها','ورود و سوابق مدیر','activities')}${tile('📊','گزارش‌ها','گزارش عملکرد','reports')}</div>`;}
+function placeholder(title){return head(title)+panel(title,empty('این بخش در نسخه فعلی به داده‌های عملیاتی متصل نیست. برای جلوگیری از نمایش اطلاعات غیرواقعی، فعال نشان داده نمی‌شود.'));}
+function adminLoginPanel(){return panel('🔐 ورود مدیر',state.adminKey?`<div class="actions">${tag('ورود انجام شده','good')}<button class="btn" id="logout">خروج</button></div>`:`<div class="muted">کلید مدیریت Render را وارد کنید. این کلید در فایل سایت ذخیره نمی‌شود.</div><input id="adminPassword" type="password" autocomplete="off" class="search" placeholder="رمز مدیر"><button class="btn primary" id="login">ورود</button>`);}
+function activitiesPage(){return head('فعالیت‌های مدیریت')+adminLoginPanel()+panel('سوابق اقدامات',state.adminKey?`<div class="actions"><button id="actionsRefresh" class="btn">دریافت سوابق</button></div>${state.actions.length?state.actions.filter(a=>visible(a.ad_id)).map(a=>row(`<b>حواله ${fmt(a.ad_id)}</b><div class="muted">${esc(a.reason||'بدون توضیح')} • ${esc(a.created_at||'')}</div>`,tag(a.action))).join(''):empty('اقدامی دریافت نشده است.')}`:empty('برای مشاهده سوابق وارد مدیریت شوید.'));}
+function supportGroups(){const m=new Map();for(const x of state.support){const id=String(x.user_id??'');if(!/^\d+$/.test(id))continue;if(!m.has(id))m.set(id,[]);m.get(id).push(x);}return [...m.entries()].sort((a,b)=>Math.max(...b[1].map(x=>Number(x.id)||0))-Math.max(...a[1].map(x=>Number(x.id)||0)));}
+function supportPage(){if(!state.adminKey)return head('پشتیبانی')+adminLoginPanel()+empty('برای دیدن پیام‌های پشتیبانی ابتدا وارد شوید.');const groups=supportGroups();let out=head('پشتیبانی')+panel('پیام‌های کاربران',`<div class="actions"><button class="btn primary" id="supportRefresh">🔄 دریافت پیام‌ها</button></div>${state.supportNotice?`<div class="notice">${esc(state.supportNotice)}</div>`:''}${!state.supportLoaded?empty('برای بارگذاری پیام‌ها، دریافت پیام‌ها را بزنید.'):groups.map(([uid,msgs])=>{const last=msgs[msgs.length-1];return `<div class="row item" data-support="${esc(uid)}"><div><b>کاربر ${esc(uid)}</b><div class="muted">${esc(String(last.body||last.file_name||'پیام').slice(0,75))}</div></div>${tag(fmt(msgs.length)+' پیام')}</div>`;}).join('')||empty('پیامی وجود ندارد.')}`);if(state.supportUser){const messages=groups.find(([uid])=>uid===state.supportUser)?.[1]||[];out+=panel('گفتگو با کاربر '+esc(state.supportUser),messages.map(m=>`<div class="kv" style="margin-bottom:8px"><span>${m.direction==='incoming'?'کاربر':'مدیر'} • ${esc(m.created_at||'')}</span><div style="white-space:pre-wrap">${esc(m.body||m.file_name||'[فایل]')}</div></div>`).join('')+`<textarea id="supportReply" class="search" rows="4" maxlength="4000" placeholder="متن پاسخ..."></textarea><button class="btn primary" id="supportSend">ثبت پاسخ برای ارسال توسط ربات</button><div class="muted">ثبت پاسخ به معنی تحویل قطعی در تلگرام نیست.</div>`);}return out;}
+function mcPanel(){if(!state.adminKey)return panel('گفت‌وگوهای مینی‌چت قدیمی',empty('برای دیدن این بخش وارد مدیریت شوید.'));let body=`<div class="muted">این بخش قدیمی است؛ گفت‌وگوی مستقیم با ادمین تلگرام مستقل از آن انجام می‌شود.</div>${state.mcError?`<div class="notice">${esc(state.mcError)}</div>`:''}`;if(state.mcAgreement){body+=`<div class="actions">${state.mcThreads.map(t=>`<button class="btn ${state.mcThread===Number(t.thread_id)?'primary':''}" data-mcthread="${Number(t.thread_id)}">${t.participant_role==='owner'?'صاحب آگهی':'پیشنهاددهنده'}</button>`).join('')}</div>`;if(state.mcThread)body+=state.mcMessages.map(m=>`<div class="kv" style="margin:8px 0"><span>${esc(m.sender_role)} • ${esc(m.created_at||'')}</span>${esc(m.message_text||'[فایل]')}</div>`).join('')||empty('پیامی وجود ندارد.');}return panel('مینی‌چت قدیمی',body);}
+function visible(id){return state.archived||Number(id)>=MIN_VISIBLE_AD_ID;}
+async function collection(path,key){const r=await fetch(API+path+'?_='+Date.now(),{cache:'no-store',headers:{Accept:'application/json'}});if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();if(!Array.isArray(d[key]))throw Error('پاسخ سرور معتبر نیست');return d[key];}
+async function refresh(){el('live').textContent='● در حال دریافت';const endpoints=[['ads','/ads'],['offers','/offers'],['conversations','/conversations'],['deals','/deals']];await Promise.all(endpoints.map(async([key,path])=>{try{const data=await collection(path,key);state[key]=data.filter(x=>x&&visible(x.ad_id)).map(x=>({...x,status:String(x.status||'').toLowerCase(),state:String(x.state||'').toLowerCase()}));state.loaded[key]=true;state.errors[key]='';}catch(e){state.errors[key]=key+': '+e.message;}}));el('live').textContent=statusText();renderRoute();}
+function headers(key=state.adminKey){return {'Accept':'application/json','X-Admin-Key':key};}
+async function adminFetch(path,opts={}){const r=await fetch(API+path,{cache:'no-store',...opts,headers:{...headers(),...(opts.headers||{})}});if(!r.ok)throw Error('HTTP '+r.status);return r.json();}
+async function login(){const pass=el('adminPassword')?.value.trim();if(!pass)return alert('رمز مدیریت را وارد کنید.');try{const r=await fetch(API+'/admin/verify',{method:'POST',headers:headers(pass),cache:'no-store'});if(!r.ok)throw Error('رمز صحیح نیست یا سرور آماده نیست');state.adminKey=pass;await Promise.allSettled([loadActions(),loadSupport()]);renderRoute();}catch(e){alert(e.message);}}
+async function loadActions(){if(!state.adminKey)return;try{const d=await adminFetch('/admin/actions');state.actions=Array.isArray(d.actions)?d.actions:[];}catch(e){state.notice=e.message;}renderRoute();}
+async function loadSupport(){if(!state.adminKey)return;try{const d=await adminFetch('/admin/support/messages?_='+Date.now());state.support=Array.isArray(d.messages)?d.messages:[];state.supportLoaded=true;state.supportNotice='';}catch(e){state.supportNotice='دریافت پیام‌ها ناموفق بود: '+e.message;}renderRoute();}
+async function sendSupport(){const text=el('supportReply')?.value.trim();if(!text||!state.supportUser)return alert('متن پاسخ را وارد کنید.');const b=el('supportSend');b.disabled=true;try{await adminFetch('/admin/support/reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:Number(state.supportUser),body:text})});state.supportNotice='پاسخ در صف ارسال ربات ثبت شد؛ تحویل را در تلگرام بررسی کنید.';await loadSupport();}catch(e){state.supportNotice='خطا: '+e.message;renderRoute();}}
+async function loadMiniChat(){const d=state.deals.find(x=>String(x.ad_id)===current().id);if(!d||!state.adminKey)return;state.mcError='';state.mcAgreement=null;state.mcThreads=[];state.mcMessages=[];try{const x=await adminFetch('/admin/minichat/agreements');const a=(x.agreements||[]).find(a=>Number(a.ad_id)===Number(d.ad_id)&&Number(a.offer_id)===Number(d.offer_id));if(!a){state.mcError='پرونده مینی‌چت برای این توافق ثبت نشده است.';}else{state.mcAgreement=a;const y=await adminFetch('/admin/minichat/threads/'+a.agreement_id);state.mcThreads=y.threads||[];}}catch(e){state.mcError=e.message;}renderRoute();}
+async function loadThread(id){state.mcThread=id;try{const x=await adminFetch('/admin/minichat/messages/'+id);state.mcMessages=x.messages||[];}catch(e){state.mcError=e.message;}renderRoute();}
+window.addEventListener('hashchange',renderRoute);
+document.addEventListener('click',async e=>{const back=e.target.closest('[data-back]');if(back){if(history.length>1)history.back();else route('home');return;}const r=e.target.closest('[data-route]');if(r){const key=r.dataset.route;const [page,...id]=key.split('/');route(page,id.join('/'));return;}const f=e.target.closest('[data-filter]');if(f){const [type,v]=f.dataset.filter;state[type+'Filter']=v;renderRoute();return;}if(e.target.closest('#refresh'))return refresh();if(e.target.closest('#archive')){state.archived=!state.archived;return refresh();}if(e.target.closest('#login'))return login();if(e.target.closest('#logout')){state.adminKey='';state.actions=[];state.support=[];state.supportLoaded=false;state.supportUser=null;return renderRoute();}if(e.target.closest('#actionsRefresh'))return loadActions();if(e.target.closest('#supportRefresh'))return loadSupport();const su=e.target.closest('[data-support]');if(su){state.supportUser=su.dataset.support;return renderRoute();}if(e.target.closest('#supportSend'))return sendSupport();if(e.target.closest('#mcOpen'))return loadMiniChat();const t=e.target.closest('[data-mcthread]');if(t)return loadThread(Number(t.dataset.mcthread));});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='adminPassword')login();});
+renderRoute();refresh();
+</script></body></html>
