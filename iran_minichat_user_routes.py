@@ -40,6 +40,22 @@ def install_user_minichat_routes(app, db_request):
             secret = hmac.new(b'WebAppData', token.encode(), hashlib.sha256).digest()
             expected = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
             if not hmac.compare_digest(expected, supplied_hash):
+                # Safe diagnostics: query Telegram server-side; never log the token,
+                # initData, its hash, user ID, or message contents.
+                try:
+                    bot_info = requests.get(
+                        'https://api.telegram.org/bot' + token + '/getMe',
+                        timeout=6,
+                    )
+                    bot_payload = bot_info.json()
+                    if bot_info.ok and bot_payload.get('ok'):
+                        username = bot_payload.get('result', {}).get('username', 'unknown')
+                        app.logger.warning('MINICHAT_BOT_IDENTITY username=%s', username)
+                    else:
+                        app.logger.warning('MINICHAT_BOT_IDENTITY telegram_rejected_token')
+                except (requests.RequestException, ValueError, TypeError):
+                    app.logger.warning('MINICHAT_BOT_IDENTITY telegram_check_unavailable')
+                app.logger.warning('MINICHAT_INIT_FIELDS names=%s', ','.join(sorted(pairs.keys())))
                 return reject('hash_mismatch')
             uid = int(json.loads(pairs['user'])['id'])
             if uid <= 0:
