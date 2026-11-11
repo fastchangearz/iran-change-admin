@@ -12,28 +12,41 @@ from flask import jsonify, request, send_file
 
 def install_user_minichat_routes(app, db_request):
     def telegram_user():
+        # Diagnostics report only a reason code, never tokens, user IDs or initData.
+        def reject(reason):
+            app.logger.warning('MINICHAT_AUTH_REJECT reason=%s', reason)
+            return None
+
         raw = request.headers.get('X-Telegram-Init-Data', '')
-        if not raw or len(raw) > 8192:
-            return None
-        pairs = dict(parse_qsl(raw, keep_blank_values=True))
-        supplied_hash = pairs.pop('hash', '')
-        pairs.pop('signature', None)
-        token = os.environ.get('IRAN_CHANGE_BOT_TOKEN', '').strip()
-        if not token or not supplied_hash or len(supplied_hash) != 64:
-            return None
+        if not raw:
+            return reject('missing_init_data')
+        if len(raw) > 8192:
+            return reject('init_data_too_large')
         try:
+            pairs = dict(parse_qsl(raw, keep_blank_values=True))
+            supplied_hash = pairs.pop('hash', '')
+            pairs.pop('signature', None)
+            token = os.environ.get('IRAN_CHANGE_BOT_TOKEN', '').strip()
+            if not token:
+                return reject('missing_render_bot_token')
+            if len(supplied_hash) != 64:
+                return reject('missing_or_invalid_hash')
             auth_date = int(pairs.get('auth_date', '0'))
-            if auth_date > time.time() + 60 or time.time() - auth_date > 86400:
-                return None
+            if auth_date > time.time() + 60:
+                return reject('auth_date_in_future')
+            if time.time() - auth_date > 86400:
+                return reject('auth_date_expired')
             data_check = '\n'.join(f'{k}={v}' for k, v in sorted(pairs.items()))
             secret = hmac.new(b'WebAppData', token.encode(), hashlib.sha256).digest()
             expected = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
             if not hmac.compare_digest(expected, supplied_hash):
-                return None
+                return reject('hash_mismatch')
             uid = int(json.loads(pairs['user'])['id'])
-            return uid if uid > 0 else None
+            if uid <= 0:
+                return reject('invalid_user_id')
+            return uid
         except (ValueError, KeyError, TypeError, json.JSONDecodeError):
-            return None
+            return reject('invalid_init_data_format')
 
     def fail(exc):
         app.logger.exception('Participant minichat database error')
