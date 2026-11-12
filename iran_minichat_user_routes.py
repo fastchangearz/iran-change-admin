@@ -56,29 +56,22 @@ def install_user_minichat_routes(app, db_request):
             expected = hmac.new(secret, data_check.encode('utf-8'), hashlib.sha256).hexdigest()
 
             if not hmac.compare_digest(expected, supplied_hash.lower()):
-                # Diagnose canonicalization only. Never accept alternative signatures.
-                # These flags do not disclose tokens, user data, or signatures.
-                raw_values = dict(parsed)
-                raw_values.pop('hash', None)
-                raw_check = '\n'.join(f'{k}={v}' for k, v in sorted(raw_values.items()))
-                with_signature = hmac.new(
-                    secret, raw_check.encode('utf-8'), hashlib.sha256
-                ).hexdigest()
-                alternate_secret = hmac.new(
-                    token.encode('utf-8'), b'WebAppData', hashlib.sha256
-                ).digest()
-                alternate_expected = hmac.new(
-                    alternate_secret, data_check.encode('utf-8'), hashlib.sha256
-                ).hexdigest()
-                app.logger.warning(
-                    'MINICHAT_AUTH_DIAGNOSTIC fields=%s signature_present=%s '
-                    'with_signature_matches=%s reversed_key_matches=%s',
-                    ','.join(sorted(pairs.keys())),
-                    'signature' in raw_values,
-                    hmac.compare_digest(with_signature, supplied_hash.lower()),
-                    hmac.compare_digest(alternate_expected, supplied_hash.lower()),
+                # Compatibility for Telegram payloads where signature is included
+                # in the bot-token HMAC. Still require a valid keyed HMAC.
+                signed_fields = dict(parsed)
+                signed_fields.pop('hash', None)
+                signature_present = 'signature' in signed_fields
+                if not signature_present:
+                    return reject('hash_mismatch')
+                signed_check = '\n'.join(
+                    f'{key}={value}' for key, value in sorted(signed_fields.items())
                 )
-                return reject('hash_mismatch')
+                signed_expected = hmac.new(
+                    secret, signed_check.encode('utf-8'), hashlib.sha256
+                ).hexdigest()
+                if not hmac.compare_digest(signed_expected, supplied_hash.lower()):
+                    return reject('hash_mismatch')
+                app.logger.info('MINICHAT_AUTH_OK mode=signature_included')
 
             user_data = json.loads(pairs['user'])
             if not isinstance(user_data, dict):
