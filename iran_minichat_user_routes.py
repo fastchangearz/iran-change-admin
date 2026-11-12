@@ -15,6 +15,7 @@ from flask import jsonify, request, send_file
 
 
 def install_user_minichat_routes(app, db_request):
+        app.extensions["iran_change_telegram_user"] = telegram_user
     def telegram_user():
         def reject(reason):
             app.logger.warning('MINICHAT_AUTH_REJECT reason=%s', reason)
