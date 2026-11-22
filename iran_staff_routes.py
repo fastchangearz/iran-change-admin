@@ -1,6 +1,4 @@
-"""Iran Change staff login (manager ICA1000), password + TOTP, persistent sessions.
-Requires the iran_staff_auth_sessions table from the accompanying SQL migration.
-"""
+"""Iran Change manager authentication: password, TOTP and protected recovery."""
 import hashlib
 import hmac
 import os
@@ -11,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 import requests
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_from_directory
 
 from iran_staff_auth import decrypt_mfa_secret, verify_totp
 
@@ -20,6 +18,10 @@ _db = None
 MANAGER_CODE = "ICA1000"
 PASSWORD_HASHER = PasswordHasher()
 SESSION_TABLE = "iran_staff_auth_sessions"
+ATTEMPT_TABLE = "iran_staff_auth_attempts"
+# The attempts table only permits 'password' and 'mfa'. A distinct identifier
+# keeps recovery attempts separate without changing the existing SQL schema.
+RECOVERY_ATTEMPT_CODE = "ICA1000:recovery"
 
 
 def db():
@@ -74,7 +76,7 @@ def make_session(staff_code, kind, minutes):
 
 
 def get_session(token, kind):
-    if not isinstance(token, str) or len(token) > 256 or len(token) < 40:
+    if not isinstance(token, str) or not 40 <= len(token) <= 256:
         return None
     rows = db()("GET", SESSION_TABLE, {
         "select": "*", "token_hash": "eq." + token_digest(token),
@@ -82,11 +84,8 @@ def get_session(token, kind):
     })
     if not rows:
         return None
-    row = rows[0]
-    expiry = parse_time(row.get("expires_at"))
-    if not expiry or expiry <= now():
-        return None
-    return row
+    expiry = parse_time(rows[0].get("expires_at"))
+    return rows[0] if expiry and expiry > now() else None
 
 
 def revoke_session(token):
@@ -97,9 +96,7 @@ def revoke_session(token):
 
 def bearer_token():
     header = request.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
-        return None
-    return header[7:].strip()
+    return header[7:].strip() if header.startswith("Bearer ") else None
 
 
 def authenticated_manager():
@@ -119,10 +116,20 @@ def valid_code(code):
     return isinstance(code, str) and bool(re.fullmatch(r"[0-9]{6}", code))
 
 
+def valid_new_password(password):
+    return (
+        isinstance(password, str)
+        and 12 <= len(password) <= 128
+        and not password.isspace()
+        and password == password.strip()
+        and any(c.isalpha() for c in password)
+        and any(c.isdigit() for c in password)
+    )
+
+
 def rate_limit(staff_code, stage, max_attempts, window_minutes):
-    """Database-backed coarse rate limit. Returns True when blocked."""
     cutoff = iso(now() - timedelta(minutes=window_minutes))
-    rows = db()("GET", "iran_staff_auth_attempts", {
+    rows = db()("GET", ATTEMPT_TABLE, {
         "select": "id", "staff_code": "eq." + staff_code,
         "stage": "eq." + stage, "created_at": "gte." + cutoff,
         "order": "created_at.desc", "limit": max_attempts,
@@ -131,22 +138,22 @@ def rate_limit(staff_code, stage, max_attempts, window_minutes):
 
 
 def record_attempt(staff_code, stage):
-    db()("POST", "iran_staff_auth_attempts", payload={
+    db()("POST", ATTEMPT_TABLE, payload={
         "staff_code": staff_code, "stage": stage,
     }, prefer="return=minimal")
+
+
+def login_enabled():
+    return os.environ.get("IRAN_STAFF_LOGIN_ENABLED", "false").lower() == "true"
 
 
 @staff_bp.route("/status", methods=["GET"])
 def staff_status():
     return jsonify({
         "service": "Iran Change Staff Authentication",
-        "status": "installed", "login_enabled": os.environ.get("IRAN_STAFF_LOGIN_ENABLED", "false").lower() == "true",
-        "manager_code": MANAGER_CODE, "version": "stage-3-login-mfa",
+        "status": "installed", "login_enabled": login_enabled(),
+        "manager_code": MANAGER_CODE, "version": "stage-4-recovery",
     })
-
-
-def login_enabled():
-    return os.environ.get("IRAN_STAFF_LOGIN_ENABLED", "false").lower() == "true"
 
 
 @staff_bp.route("/login", methods=["POST"])
@@ -203,7 +210,6 @@ def staff_mfa_verify():
         if not verify_totp(secret, code):
             record_attempt(MANAGER_CODE, "mfa")
             return fail("Incorrect code", 401)
-        # Revoke challenge before issuing access token, preventing ordinary replay.
         claimed = db()("PATCH", SESSION_TABLE, {
             "token_hash": "eq." + token_digest(challenge_token),
             "kind": "eq.challenge", "revoked_at": "is.null",
@@ -222,6 +228,51 @@ def staff_mfa_verify():
     except (requests.RequestException, RuntimeError, ValueError, TypeError) as exc:
         log_error("MFA", exc)
         return fail("Verification unavailable", 503)
+
+
+@staff_bp.route("/password/recover", methods=["POST"])
+def recover_manager_password():
+    """Require independent Render recovery key AND current TOTP to reset password."""
+    if not login_enabled():
+        return fail("Login not enabled", 503)
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return fail("Invalid request", 400)
+    recovery_key = data.get("recovery_key")
+    otp = data.get("code")
+    new_password = data.get("new_password")
+    if (not isinstance(recovery_key, str) or len(recovery_key) > 256
+            or not valid_code(otp) or not valid_new_password(new_password)):
+        return fail("Invalid recovery information", 400)
+    try:
+        if rate_limit(RECOVERY_ATTEMPT_CODE, "password", 5, 15):
+            return fail("Too many attempts. Try again later", 429)
+        # The existing attempts schema permits the 'password' stage; the
+        # separate staff_code prevents recovery failures locking normal login.
+        record_attempt(RECOVERY_ATTEMPT_CODE, "password")
+        expected = os.environ.get("IRAN_STAFF_RECOVERY_KEY", "")
+        if len(expected) < 40 or not hmac.compare_digest(recovery_key, expected):
+            return fail("Recovery verification failed", 401)
+        account = account_by_code(MANAGER_CODE)
+        if not account or not account.get("is_active") or not account.get("mfa_enabled") or not account.get("mfa_secret_encrypted"):
+            return fail("Account unavailable", 403)
+        secret = decrypt_mfa_secret(account["mfa_secret_encrypted"])
+        if not verify_totp(secret, otp):
+            return fail("Recovery verification failed", 401)
+        updated = db()("PATCH", "iran_staff_accounts", {
+            "staff_code": "eq." + MANAGER_CODE, "is_active": "eq.true",
+        }, {"password_hash": PASSWORD_HASHER.hash(new_password), "updated_at": iso(now())},
+            "return=representation")
+        if not updated:
+            return fail("Password update failed", 503)
+        # Revoke both access tokens and pending challenges.
+        db()("PATCH", SESSION_TABLE, {
+            "staff_code": "eq." + MANAGER_CODE, "revoked_at": "is.null",
+        }, {"revoked_at": iso(now())}, "return=minimal")
+        return jsonify({"status": "password_reset", "message": "Password changed successfully"})
+    except (requests.RequestException, RuntimeError, ValueError, TypeError) as exc:
+        log_error("RECOVERY", exc)
+        return fail("Recovery unavailable", 503)
 
 
 @staff_bp.route("/me", methods=["GET"])
@@ -259,7 +310,6 @@ def staff_logout():
         return fail("Logout unavailable", 503)
 
 
-# Administration endpoints remain disabled until authorization and permissions are implemented.
 @staff_bp.route("/admins", methods=["GET", "POST"])
 def staff_admins():
     return fail("Admin management not enabled", 503)
@@ -275,109 +325,13 @@ def disable_staff_admin(staff_code):
     return fail("Admin management not enabled", 503)
 
 
+@staff_bp.route("/portal", methods=["GET"])
+def staff_portal():
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), "iran_staff_login.html")
+
+
 def install_staff_routes(app, db_request):
     global _db
     _db = db_request
     if "iran_staff" not in app.blueprints:
         app.register_blueprint(staff_bp)
-
-# Serve the manager login on the same origin as the API (no CORS or token persistence).
-@staff_bp.route('/portal', methods=['GET'])
-def staff_portal():
-    from flask import send_from_directory
-    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'iran_staff_login.html')
-# Secure manager password recovery
-@staff_bp.route("/password/recover", methods=["POST"])
-def recover_manager_password():
-    if not login_enabled():
-        return fail("Login not enabled", 503)
-
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return fail("Invalid request", 400)
-
-    recovery_key = data.get("recovery_key")
-    otp = data.get("code")
-    new_password = data.get("new_password")
-
-    if (
-        not isinstance(recovery_key, str)
-        or not valid_code(otp)
-        or not isinstance(new_password, str)
-        or len(new_password) < 12
-        or len(new_password) > 128
-    ):
-        return fail("Invalid recovery information", 400)
-
-    try:
-        if rate_limit(MANAGER_CODE, "mfa", 8, 15):
-            return fail("Too many attempts", 429)
-
-        # Count recovery attempts, including invalid keys.
-        record_attempt(MANAGER_CODE, "mfa")
-
-        expected = os.environ.get(
-            "IRAN_STAFF_RECOVERY_KEY", ""
-        )
-
-        if (
-            len(expected) < 40
-            or not hmac.compare_digest(
-                recovery_key.encode(),
-                expected.encode()
-            )
-        ):
-            return fail("Recovery verification failed", 401)
-
-        account = account_by_code(MANAGER_CODE)
-        if (
-            not account
-            or not account.get("is_active")
-            or not account.get("mfa_enabled")
-            or not account.get("mfa_secret_encrypted")
-        ):
-            return fail("Account unavailable", 403)
-
-        secret = decrypt_mfa_secret(
-            account["mfa_secret_encrypted"]
-        )
-
-        if not verify_totp(secret, otp):
-            return fail("Recovery verification failed", 401)
-
-        password_hash = PASSWORD_HASHER.hash(
-            new_password
-        )
-
-        updated = db()(
-            "PATCH",
-            "iran_staff_accounts",
-            {"staff_code": "eq." + MANAGER_CODE},
-            {"password_hash": password_hash},
-            "return=representation"
-        )
-
-        if not updated:
-            return fail("Password update failed", 503)
-
-        # Revoke existing login sessions.
-        db()(
-            "PATCH",
-            SESSION_TABLE,
-            {
-                "staff_code": "eq." + MANAGER_CODE,
-                "revoked_at": "is.null"
-            },
-            {"revoked_at": iso(now())},
-            "return=minimal"
-        )
-
-        return jsonify({
-            "status": "password_reset",
-            "message": "Password changed successfully"
-        })
-
-    except (requests.RequestException,
-            RuntimeError, ValueError, TypeError) as exc:
-        log_error("RECOVERY", exc)
-        return fail("Recovery unavailable", 503)
