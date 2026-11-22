@@ -1,3 +1,4 @@
+
 import os
 import hmac
 import logging
@@ -1299,6 +1300,37 @@ def customer_ads():
 
 
 # ==========================================
+# Public market offer ladder: prices and statuses only, never identities.
+@app.route('/customer/offers', methods=['GET'])
+def customer_offers():
+    try:
+        ad_raw = request.args.get('ad_id', '')
+        if not ad_raw.isdecimal() or not 1 <= int(ad_raw) <= 999999999:
+            return jsonify({'error': 'Invalid ad_id'}), 400
+        rows = db_request('GET', 'iran_offers', {
+            'select': 'offer_id,ad_id,proposed_price,status',
+            'ad_id': 'eq.' + ad_raw,
+            'status': 'in.(pending,rejected,accepted,closed)',
+            'order': 'offer_id.asc',
+            'limit': 500,
+        })
+        if not isinstance(rows, list):
+            raise ValueError('Invalid offers response')
+        offers = []
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            offers.append({
+                'offer_id': item.get('offer_id'),
+                'proposed_price': item.get('proposed_price'),
+                'status': item.get('status'),
+            })
+        return jsonify({'ad_id': int(ad_raw), 'offers': offers, 'count': len(offers)})
+    except (requests.RequestException, RuntimeError, ValueError):
+        app.logger.exception('Public offers unavailable')
+        return jsonify({'error': 'Offers temporarily unavailable'}), 503
+
+
 # Start Server
 # ==========================================
 
