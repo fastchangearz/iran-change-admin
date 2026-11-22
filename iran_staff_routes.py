@@ -1,12 +1,14 @@
+# ==========================================
 # IRAN CHANGE - Staff Authentication
-# Manager bootstrap: ICA1000
+# Manager Bootstrap: ICA1000
+# ==========================================
 
 import os
 import hmac
 import requests
 
 from datetime import datetime, timedelta, timezone
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 
 from iran_staff_auth import (
     valid_new_password,
@@ -16,6 +18,7 @@ from iran_staff_auth import (
     decrypt_mfa_secret,
     verify_totp,
 )
+
 
 staff_bp = Blueprint(
     "iran_staff",
@@ -27,24 +30,43 @@ _db = None
 MANAGER_CODE = "ICA1000"
 
 
+# ==========================================
+# Database Connection
+# ==========================================
+
 def db():
     if _db is None:
-        raise RuntimeError("Staff database unavailable")
+        raise RuntimeError(
+            "Staff database unavailable"
+        )
     return _db
 
+
+# ==========================================
+# Bootstrap Authorization
+# ==========================================
 
 def bootstrap_ok():
     expected = os.environ.get(
         "IRAN_STAFF_BOOTSTRAP_KEY", ""
     )
+
     supplied = request.headers.get(
         "X-Staff-Bootstrap-Key", ""
     )
 
-    return bool(expected) and hmac.compare_digest(
-        supplied, expected
+    return (
+        bool(expected)
+        and hmac.compare_digest(
+            supplied,
+            expected
+        )
     )
 
+
+# ==========================================
+# Manager Account
+# ==========================================
 
 def manager():
     rows = db()(
@@ -56,29 +78,52 @@ def manager():
             "limit": 1,
         }
     )
+
     return rows[0] if rows else None
 
 
 def error(message, status):
-    return jsonify({"error": message}), status
+    return jsonify({
+        "error": message
+    }), status
 
 
-@staff_bp.route("/status", methods=["GET"])
+def log_staff_error(stage, exc):
+    current_app.logger.error(
+        "STAFF_BOOTSTRAP_%s_FAILED: %s",
+        stage,
+        type(exc).__name__
+    )
+
+
+# ==========================================
+# Staff Status
+# ==========================================
+
+@staff_bp.route(
+    "/status",
+    methods=["GET"]
+)
 def staff_status():
     return jsonify({
         "service": "Iran Change Staff Authentication",
         "status": "installed",
         "login_enabled": False,
         "manager_code": MANAGER_CODE,
-        "version": "stage-2"
+        "version": "stage-2-debug"
     })
 
+
+# ==========================================
+# Manager Bootstrap - Start
+# ==========================================
 
 @staff_bp.route(
     "/bootstrap/start",
     methods=["POST"]
 )
 def bootstrap_start():
+
     if not bootstrap_ok():
         return error("Unauthorized", 401)
 
@@ -96,27 +141,43 @@ def bootstrap_start():
             400
         )
 
+    stage = "READ_MANAGER"
+
     try:
         account = manager()
 
         if not account:
-            return error("Manager not found", 404)
+            return error(
+                "Manager not found", 404
+            )
 
         if (
             account.get("is_active")
             or account.get("mfa_enabled")
         ):
             return error(
-                "Manager already activated", 409
+                "Manager already activated",
+                409
             )
 
+        stage = "GENERATE_MFA"
+
         secret = new_totp_secret()
+
+        stage = "ENCRYPT_MFA"
+
         encrypted = encrypt_mfa_secret(secret)
 
         expires = (
             datetime.now(timezone.utc)
             + timedelta(minutes=10)
         ).isoformat()
+
+        stage = "HASH_PASSWORD"
+
+        password_hash = hash_password(password)
+
+        stage = "SAVE_MANAGER"
 
         updated = db()(
             "PATCH",
@@ -127,7 +188,7 @@ def bootstrap_start():
                 "mfa_enabled": "eq.false",
             },
             {
-                "password_hash": hash_password(password),
+                "password_hash": password_hash,
                 "mfa_secret_encrypted": encrypted,
                 "setup_attempts": 0,
                 "setup_expires_at": expires,
@@ -137,7 +198,8 @@ def bootstrap_start():
 
         if not updated:
             return error(
-                "Manager state changed", 409
+                "Manager state changed",
+                409
             )
 
         return jsonify({
@@ -151,16 +213,31 @@ def bootstrap_start():
             )
         })
 
-    except (requests.RequestException,
-            RuntimeError, ValueError):
-        return error("Setup unavailable", 503)
+    except (
+        requests.RequestException,
+        RuntimeError,
+        ValueError,
+        TypeError
+    ) as exc:
 
+        log_staff_error(stage, exc)
+
+        return error(
+            "Setup unavailable",
+            503
+        )
+
+
+# ==========================================
+# Manager Bootstrap - Confirm
+# ==========================================
 
 @staff_bp.route(
     "/bootstrap/confirm",
     methods=["POST"]
 )
 def bootstrap_confirm():
+
     if not bootstrap_ok():
         return error("Unauthorized", 401)
 
@@ -177,46 +254,69 @@ def bootstrap_confirm():
         or not code.isascii()
         or not code.isdecimal()
     ):
-        return error("Invalid code", 400)
+        return error(
+            "Invalid code",
+            400
+        )
+
+    stage = "READ_MANAGER"
 
     try:
         account = manager()
 
         if not account:
-            return error("Manager not found", 404)
+            return error(
+                "Manager not found",
+                404
+            )
 
         if (
             account.get("is_active")
             or account.get("mfa_enabled")
         ):
             return error(
-                "Manager already activated", 409
+                "Manager already activated",
+                409
             )
 
-        expires = account.get("setup_expires_at")
+        expires = account.get(
+            "setup_expires_at"
+        )
+
         encrypted = account.get(
             "mfa_secret_encrypted"
         )
+
         attempts = int(
             account.get("setup_attempts") or 0
         )
 
         if not expires or not encrypted:
-            return error("Setup not started", 409)
+            return error(
+                "Setup not started",
+                409
+            )
+
+        stage = "CHECK_EXPIRY"
 
         expiry = datetime.fromisoformat(
             expires.replace("Z", "+00:00")
         )
 
         if datetime.now(timezone.utc) >= expiry:
-            return error("Setup expired", 410)
+            return error(
+                "Setup expired",
+                410
+            )
 
         if attempts >= 5:
             return error(
-                "Too many attempts", 429
+                "Too many attempts",
+                429
             )
 
-        # Reserve an attempt before verifying the code.
+        stage = "RESERVE_ATTEMPT"
+
         reserved = db()(
             "PATCH",
             "iran_staff_accounts",
@@ -235,13 +335,25 @@ def bootstrap_confirm():
 
         if not reserved:
             return error(
-                "Please retry verification", 409
+                "Please retry verification",
+                409
             )
 
-        secret = decrypt_mfa_secret(encrypted)
+        stage = "DECRYPT_MFA"
+
+        secret = decrypt_mfa_secret(
+            encrypted
+        )
+
+        stage = "VERIFY_MFA"
 
         if not verify_totp(secret, code):
-            return error("Incorrect code", 401)
+            return error(
+                "Incorrect code",
+                401
+            )
+
+        stage = "ACTIVATE_MANAGER"
 
         activated = db()(
             "PATCH",
@@ -265,7 +377,8 @@ def bootstrap_confirm():
 
         if not activated:
             return error(
-                "Activation conflict", 409
+                "Activation conflict",
+                409
             )
 
         return jsonify({
@@ -275,36 +388,82 @@ def bootstrap_confirm():
             "message": "Manager activated"
         })
 
-    except (requests.RequestException,
-            RuntimeError, ValueError, TypeError):
+    except (
+        requests.RequestException,
+        RuntimeError,
+        ValueError,
+        TypeError
+    ) as exc:
+
+        log_staff_error(stage, exc)
+
         return error(
-            "Verification unavailable", 503
+            "Verification unavailable",
+            503
         )
 
 
-@staff_bp.route("/login", methods=["POST"])
+# ==========================================
+# Login - Not Enabled Yet
+# ==========================================
+
+@staff_bp.route(
+    "/login",
+    methods=["POST"]
+)
 def staff_login():
-    return error("Login not enabled yet", 503)
+    return error(
+        "Login not enabled yet",
+        503
+    )
 
 
-@staff_bp.route("/mfa/verify", methods=["POST"])
+@staff_bp.route(
+    "/mfa/verify",
+    methods=["POST"]
+)
 def staff_mfa_verify():
-    return error("Login not enabled yet", 503)
+    return error(
+        "Login not enabled yet",
+        503
+    )
 
 
-@staff_bp.route("/logout", methods=["POST"])
+@staff_bp.route(
+    "/logout",
+    methods=["POST"]
+)
 def staff_logout():
-    return error("Login not enabled yet", 503)
+    return error(
+        "Login not enabled yet",
+        503
+    )
 
 
-@staff_bp.route("/me", methods=["GET"])
+@staff_bp.route(
+    "/me",
+    methods=["GET"]
+)
 def staff_profile():
-    return error("Login not enabled yet", 503)
+    return error(
+        "Login not enabled yet",
+        503
+    )
 
 
-@staff_bp.route("/admins", methods=["GET", "POST"])
+# ==========================================
+# Admin Management - Not Enabled Yet
+# ==========================================
+
+@staff_bp.route(
+    "/admins",
+    methods=["GET", "POST"]
+)
 def staff_admins():
-    return error("Admin management not enabled", 503)
+    return error(
+        "Admin management not enabled",
+        503
+    )
 
 
 @staff_bp.route(
@@ -312,7 +471,10 @@ def staff_admins():
     methods=["PUT"]
 )
 def update_staff_permissions(staff_code):
-    return error("Not enabled", 503)
+    return error(
+        "Not enabled",
+        503
+    )
 
 
 @staff_bp.route(
@@ -320,11 +482,19 @@ def update_staff_permissions(staff_code):
     methods=["POST"]
 )
 def disable_staff_admin(staff_code):
-    return error("Not enabled", 503)
+    return error(
+        "Not enabled",
+        503
+    )
 
+
+# ==========================================
+# Install Staff Routes
+# ==========================================
 
 def install_staff_routes(app, db_request):
     global _db
+
     _db = db_request
 
     if "iran_staff" not in app.blueprints:
