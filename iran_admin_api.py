@@ -1341,6 +1341,9 @@ from iran_minichat_user_routes import install_user_minichat_routes
 install_user_minichat_routes(app, db_request)
 
 
+from iran_staff_routes import install_staff_routes
+install_staff_routes(app)
+
 if __name__ == '__main__':
     port = int(
         os.environ.get(
