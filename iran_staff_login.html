@@ -1,19 +1,78 @@
 <!doctype html>
-<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ورود مدیریت | IRAN CHANGE</title><style>
-:root{color-scheme:dark;font-family:Tahoma,Arial,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 80% 0%,#29251b,#08090b 55%);color:#f4f1e9;padding:20px}.panel{width:min(100%,420px);padding:34px 27px;border:1px solid #74633e;border-radius:20px;background:#141519;box-shadow:0 20px 70px #0008}.brand{text-align:center;color:#d7b56b;letter-spacing:3px;font-size:22px;font-weight:700}.subtitle{text-align:center;color:#b8b5af;margin:12px 0 28px}label{display:block;margin:16px 0 7px;color:#d7d3c9;font-size:13px}input{width:100%;border:1px solid #414146;background:#202126;border-radius:10px;color:white;padding:14px;font-size:17px;direction:ltr;text-align:left;outline:none}input:focus{border-color:#d7b56b}button{width:100%;border:0;border-radius:10px;background:#cba85e;color:#16140e;padding:14px;margin-top:22px;font-weight:bold;font-size:16px;cursor:pointer}button:disabled{opacity:.5;cursor:wait}.secondary{background:#2c2d32;color:#f3f0e8;margin-top:10px}.message{min-height:25px;margin-top:15px;color:#ffb7a6;font-size:13px;line-height:1.8}.ok{color:#8de0ac}.hide{display:none}.hint{font-size:12px;color:#aaa7a1;line-height:1.9;margin-top:16px}a{color:#e2c37f}
-</style></head><body><main class="panel"><div class="brand">IRAN CHANGE</div><p class="subtitle">ورود امن مدیر اصلی</p>
-<section id="login"><form id="loginForm"><label for="staff">شناسه مدیر</label><input id="staff" value="ICA1000" autocomplete="username" required><label for="password">رمز عبور</label><input id="password" type="password" autocomplete="current-password" required><button id="loginBtn">ادامه و دریافت تأیید دومرحله‌ای</button></form></section>
-<section id="mfa" class="hide"><form id="mfaForm"><label for="otp">کد ۶ رقمی Google Authenticator</label><input id="otp" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" required><button id="mfaBtn">تأیید و ورود</button></form><button class="secondary" id="backBtn" type="button">بازگشت</button><p class="hint">کد هر ۳۰ ثانیه تغییر می‌کند. کد حسابی را وارد کنید که هنگام فعال‌سازی نهایی مدیر ساخته‌اید.</p></section>
-<section id="logged" class="hide"><p class="ok" id="welcome">ورود با موفقیت انجام شد.</p><p class="hint">نشست مدیر در این تب فعال است. توجه: داشبورد قدیمی هنوز باید به این روش ورود متصل شود؛ ورود به این صفحه به‌تنهایی دسترسی‌های قدیمی را ایمن نمی‌کند.</p><button class="secondary" id="logoutBtn">خروج امن</button></section><div id="message" class="message" role="status" aria-live="polite"></div></main>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ورود مدیریت | IRAN CHANGE</title>
+<style>
+:root{color-scheme:dark;font-family:Tahoma,Arial,sans-serif}*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 80% 0%,#29251b,#08090b 55%);color:#f4f1e9;padding:20px}
+.panel{width:min(100%,420px);padding:34px 27px;border:1px solid #74633e;border-radius:20px;background:#141519;box-shadow:0 20px 70px #0008}
+.brand{text-align:center;color:#d7b56b;letter-spacing:3px;font-size:22px;font-weight:700}
+.subtitle{text-align:center;color:#b8b5af;margin:12px 0 28px}
+label{display:block;margin:16px 0 7px;color:#d7d3c9;font-size:13px}
+input{width:100%;border:1px solid #414146;background:#202126;border-radius:10px;color:white;padding:14px;font-size:17px;direction:ltr;text-align:left;outline:none}
+input:focus{border-color:#d7b56b}
+button{width:100%;border:0;border-radius:10px;background:#cba85e;color:#16140e;padding:14px;margin-top:22px;font-weight:bold;font-size:16px;cursor:pointer}
+button:disabled{opacity:.5;cursor:wait}.secondary{background:#2c2d32;color:#f3f0e8;margin-top:10px}
+.linkbtn{background:transparent;color:#e2c37f;border:1px solid #655633;font-size:13px;margin-top:12px;padding:11px}
+.message{min-height:25px;margin-top:15px;color:#ffb7a6;font-size:13px;line-height:1.8;overflow-wrap:anywhere}
+.ok{color:#8de0ac}.hide{display:none}.hint{font-size:12px;color:#aaa7a1;line-height:1.9;margin-top:16px}
+</style>
+</head>
+<body>
+<main class="panel">
+<div class="brand">IRAN CHANGE</div>
+<p class="subtitle" id="subtitle">ورود امن مدیر اصلی</p>
+<section id="login">
+<form id="loginForm">
+<label for="staff">شناسه مدیر</label><input id="staff" value="ICA1000" autocomplete="username" required>
+<label for="password">رمز عبور</label><input id="password" type="password" autocomplete="current-password" required>
+<button id="loginBtn" type="submit">ادامه و دریافت تأیید دومرحله‌ای</button>
+</form>
+<button class="linkbtn" id="forgotBtn" type="button">فراموشی رمز عبور</button>
+</section>
+<section id="recover" class="hide">
+<form id="recoverForm">
+<p class="hint">برای بازنشانی رمز مدیر ICA1000، کلید بازیابی اختصاصی ذخیره‌شده در Render و کد فعلی Google Authenticator لازم است.</p>
+<label for="recoveryKey">کلید بازیابی Render</label><input id="recoveryKey" type="password" autocomplete="off" required>
+<label for="recoveryOtp">کد ۶ رقمی Google Authenticator</label><input id="recoveryOtp" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" required>
+<label for="newPassword">رمز عبور جدید</label><input id="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+<label for="confirmPassword">تکرار رمز عبور جدید</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+<button id="recoverBtn" type="submit">تأیید هویت و تغییر رمز</button>
+</form>
+<button class="secondary" id="recoverBackBtn" type="button">بازگشت به ورود</button>
+<p class="hint">کلید بازیابی و کد شش‌رقمی را برای هیچ‌کس ارسال نکنید. بعد از تغییر رمز، نشست‌های قبلی باطل می‌شوند.</p>
+</section>
+<section id="mfa" class="hide">
+<form id="mfaForm">
+<label for="otp">کد ۶ رقمی Google Authenticator</label><input id="otp" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" required>
+<button id="mfaBtn" type="submit">تأیید و ورود</button>
+</form>
+<button class="secondary" id="backBtn" type="button">بازگشت</button>
+<p class="hint">کد هر ۳۰ ثانیه تغییر می‌کند. کد حسابی را وارد کنید که هنگام فعال‌سازی نهایی مدیر ساخته‌اید.</p>
+</section>
+<section id="logged" class="hide">
+<p class="ok" id="welcome">ورود با موفقیت انجام شد.</p>
+<p class="hint">نشست مدیر در این تب فعال است. داشبورد قدیمی هنوز باید به این روش ورود متصل شود؛ ورود به این صفحه به‌تنهایی دسترسی‌های قدیمی را ایمن نمی‌کند.</p>
+<button class="secondary" id="logoutBtn" type="button">خروج امن</button>
+</section>
+<div id="message" class="message" role="status" aria-live="polite"></div>
+</main>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);let challenge=null,access=null;
-function show(id){for(const section of ['login','mfa','logged'])$(section).classList.toggle('hide',section!==id);$('message').textContent='';}
+function show(id){for(const section of ['login','recover','mfa','logged'])$(section).classList.toggle('hide',section!==id);$('subtitle').textContent=id==='recover'?'بازیابی امن رمز مدیر':'ورود امن مدیر اصلی';$('message').textContent='';$('message').classList.remove('ok')}
 function msg(text,ok=false){$('message').textContent=text;$('message').classList.toggle('ok',ok)}
-async function call(path,body,token){const options={method:body?'POST':'GET',headers:{'Accept':'application/json'}};if(body){options.headers['Content-Type']='application/json';options.body=JSON.stringify(body)}if(token)options.headers.Authorization='Bearer '+token;const r=await fetch(path,options);let j={};try{j=await r.json()}catch{}if(!r.ok)throw new Error(j.error||('خطای سرور: '+r.status));return j}
-function errorText(e){const t=String(e.message||e);return ({'Invalid credentials':'شناسه یا رمز عبور اشتباه است.','Incorrect code':'کد شش‌رقمی اشتباه است.','Challenge expired or invalid':'مهلت کد تمام شده؛ دوباره وارد شوید.','Too many attempts. Try again later':'تلاش‌های زیادی انجام شده؛ کمی بعد دوباره امتحان کنید.','Login unavailable':'سرویس ورود موقتاً در دسترس نیست.','Verification unavailable':'سرویس تأیید موقتاً در دسترس نیست.'})[t]||t}
+async function call(path,body,token){const options={method:body?'POST':'GET',headers:{'Accept':'application/json'},cache:'no-store'};if(body){options.headers['Content-Type']='application/json';options.body=JSON.stringify(body)}if(token)options.headers.Authorization='Bearer '+token;const r=await fetch(path,options);let j={};try{j=await r.json()}catch{}if(!r.ok)throw new Error(j.error||('خطای سرور: '+r.status));return j}
+function errorText(e){const t=String(e.message||e);return ({'Invalid credentials':'شناسه یا رمز عبور اشتباه است.','Incorrect code':'کد شش‌رقمی اشتباه است.','Challenge expired or invalid':'مهلت کد تمام شده؛ دوباره وارد شوید.','Too many attempts. Try again later':'تلاش‌های زیادی انجام شده؛ ۱۵ دقیقه بعد امتحان کنید.','Too many attempts':'تلاش‌های زیادی انجام شده؛ ۱۵ دقیقه بعد امتحان کنید.','Login unavailable':'سرویس ورود موقتاً در دسترس نیست.','Verification unavailable':'سرویس تأیید موقتاً در دسترس نیست.','Invalid recovery information':'اطلاعات بازیابی یا رمز جدید معتبر نیست.','Recovery verification failed':'کلید بازیابی یا کد تأیید صحیح نیست.','Recovery unavailable':'سرویس بازیابی در دسترس نیست.','Password update failed':'تغییر رمز انجام نشد؛ دوباره تلاش کنید.'})[t]||t}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginBtn').disabled=true;try{const r=await call('/staff/login',{staff_code:$('staff').value.trim(),password:$('password').value});challenge=r.challenge_token;$('password').value='';show('mfa');$('otp').focus()}catch(err){msg(errorText(err))}finally{$('loginBtn').disabled=false}});
+$('forgotBtn').onclick=()=>{challenge=null;$('password').value='';show('recover');$('recoveryKey').focus()};
+$('recoverBackBtn').onclick=()=>{$('recoverForm').reset();show('login')};
+$('recoverForm').addEventListener('submit',async e=>{e.preventDefault();const p=$('newPassword').value;if(p!==$('confirmPassword').value){msg('رمز جدید و تکرار آن یکسان نیستند.');return}if(p.length<12){msg('رمز جدید باید حداقل ۱۲ نویسه داشته باشد.');return}$('recoverBtn').disabled=true;try{const r=await call('/staff/password/recover',{recovery_key:$('recoveryKey').value,code:$('recoveryOtp').value.trim(),new_password:p});if(r.status!=='password_reset')throw new Error('پاسخ غیرمنتظره از سرور');$('recoverForm').reset();show('login');msg('رمز عبور با موفقیت تغییر کرد. اکنون با رمز جدید وارد شوید.',true);$('password').focus()}catch(err){msg(errorText(err))}finally{$('recoverBtn').disabled=false}});
 $('mfaForm').addEventListener('submit',async e=>{e.preventDefault();$('mfaBtn').disabled=true;try{const r=await call('/staff/mfa/verify',{challenge_token:challenge,code:$('otp').value.trim()});access=r.access_token;challenge=null;$('otp').value='';const profile=await call('/staff/me',null,access);$('welcome').textContent='ورود موفق: '+(profile.full_name||profile.staff_code);show('logged')}catch(err){msg(errorText(err))}finally{$('mfaBtn').disabled=false}});
 $('backBtn').onclick=()=>{challenge=null;$('otp').value='';show('login')};
 $('logoutBtn').onclick=async()=>{try{if(access)await call('/staff/logout',{},access)}catch(err){msg(errorText(err));return}access=null;show('login');msg('از حساب خارج شدید.',true)};
-</script></body></html>
+</script>
+</body>
+</html>
