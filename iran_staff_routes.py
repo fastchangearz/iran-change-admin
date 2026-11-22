@@ -88,11 +88,26 @@ def error(message, status):
     }), status
 
 
+# ==========================================
+# Safe Error Logging
+# ==========================================
+
 def log_staff_error(stage, exc):
+    http_status = "unknown"
+
+    if isinstance(exc, requests.HTTPError):
+        response = exc.response
+
+        if response is not None:
+            http_status = str(
+                response.status_code
+            )
+
     current_app.logger.error(
-        "STAFF_BOOTSTRAP_%s_FAILED: %s",
+        "STAFF_BOOTSTRAP_%s_FAILED: %s HTTP_STATUS=%s",
         stage,
-        type(exc).__name__
+        type(exc).__name__,
+        http_status
     )
 
 
@@ -110,7 +125,7 @@ def staff_status():
         "status": "installed",
         "login_enabled": False,
         "manager_code": MANAGER_CODE,
-        "version": "stage-2-debug"
+        "version": "stage-2-debug-http"
     })
 
 
@@ -148,7 +163,8 @@ def bootstrap_start():
 
         if not account:
             return error(
-                "Manager not found", 404
+                "Manager not found",
+                404
             )
 
         if (
