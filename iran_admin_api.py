@@ -1,4 +1,3 @@
-
 import os
 import hmac
 import logging
@@ -1261,22 +1260,54 @@ def admin_support_capabilities():
     })
 
 
+# IRAN CHANGE - Customer-facing, read-only ads endpoint
+# Paste this block into iran_admin_api.py BEFORE the Start Server section.
+# It uses the existing app and db_request functions.
+
+@app.route('/customer/ads', methods=['GET'])
+def customer_ads():
+    """Public, active ads only. Never return raw Supabase records."""
+    try:
+        limit_raw = request.args.get('limit', '100')
+        offset_raw = request.args.get('offset', '0')
+        if not limit_raw.isdecimal() or not offset_raw.isdecimal():
+            return jsonify({'error': 'Invalid pagination'}), 400
+        limit = int(limit_raw)
+        offset = int(offset_raw)
+        if not 1 <= limit <= 100 or not 0 <= offset <= 1000000:
+            return jsonify({'error': 'Invalid pagination'}), 400
+
+        # Explicit allowlist: never select '*' for a public endpoint.
+        public_fields = (
+            'ad_id,trade_type,currency,amount,price,'
+            'method,country,status,created_at'
+        )
+        rows = db_request('GET', 'iran_ads', {
+            'select': public_fields,
+            'status': 'in.(active,published)',
+            'order': 'created_at.desc,ad_id.desc',
+            'limit': limit,
+            'offset': offset,
+        })
+        if not isinstance(rows, list):
+            raise ValueError('Invalid ads response')
+        return jsonify({'ads': rows, 'count': len(rows),
+                        'limit': limit, 'offset': offset})
+    except (requests.RequestException, RuntimeError, ValueError):
+        app.logger.exception('Customer ads unavailable')
+        return jsonify({'error': 'Ads temporarily unavailable'}), 503
+
+
 # ==========================================
 # Start Server
 # ==========================================
 
 from iran_minichat_routes import install_minichat_routes
 install_minichat_routes(app, db_request, admin_authorized, authorized)
+
 from iran_minichat_user_routes import install_user_minichat_routes
 install_user_minichat_routes(app, db_request)
-from iran_minichat_files import install_minichat_file_routes
 
-install_minichat_file_routes(
-    app,
-    db_request,
-    admin_authorized,
-    app.extensions["iran_change_telegram_user"]
-)
 
 if __name__ == '__main__':
     port = int(
