@@ -286,3 +286,98 @@ def install_staff_routes(app, db_request):
 def staff_portal():
     from flask import send_from_directory
     return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'iran_staff_login.html')
+# Secure manager password recovery
+@staff_bp.route("/password/recover", methods=["POST"])
+def recover_manager_password():
+    if not login_enabled():
+        return fail("Login not enabled", 503)
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return fail("Invalid request", 400)
+
+    recovery_key = data.get("recovery_key")
+    otp = data.get("code")
+    new_password = data.get("new_password")
+
+    if (
+        not isinstance(recovery_key, str)
+        or not valid_code(otp)
+        or not isinstance(new_password, str)
+        or len(new_password) < 12
+        or len(new_password) > 128
+    ):
+        return fail("Invalid recovery information", 400)
+
+    try:
+        if rate_limit(MANAGER_CODE, "mfa", 8, 15):
+            return fail("Too many attempts", 429)
+
+        # Count recovery attempts, including invalid keys.
+        record_attempt(MANAGER_CODE, "mfa")
+
+        expected = os.environ.get(
+            "IRAN_STAFF_RECOVERY_KEY", ""
+        )
+
+        if (
+            len(expected) < 40
+            or not hmac.compare_digest(
+                recovery_key.encode(),
+                expected.encode()
+            )
+        ):
+            return fail("Recovery verification failed", 401)
+
+        account = account_by_code(MANAGER_CODE)
+        if (
+            not account
+            or not account.get("is_active")
+            or not account.get("mfa_enabled")
+            or not account.get("mfa_secret_encrypted")
+        ):
+            return fail("Account unavailable", 403)
+
+        secret = decrypt_mfa_secret(
+            account["mfa_secret_encrypted"]
+        )
+
+        if not verify_totp(secret, otp):
+            return fail("Recovery verification failed", 401)
+
+        password_hash = PASSWORD_HASHER.hash(
+            new_password
+        )
+
+        updated = db()(
+            "PATCH",
+            "iran_staff_accounts",
+            {"staff_code": "eq." + MANAGER_CODE},
+            {"password_hash": password_hash},
+            "return=representation"
+        )
+
+        if not updated:
+            return fail("Password update failed", 503)
+
+        # Revoke existing login sessions.
+        db()(
+            "PATCH",
+            SESSION_TABLE,
+            {
+                "staff_code": "eq." + MANAGER_CODE,
+                "revoked_at": "is.null"
+            },
+            {"revoked_at": iso(now())},
+            "return=minimal"
+        )
+
+        return jsonify({
+            "status": "password_reset",
+            "message": "Password changed successfully"
+        })
+
+    except (requests.RequestException,
+            RuntimeError, ValueError, TypeError) as exc:
+        log_error("RECOVERY", exc)
+        return fail("Recovery unavailable", 503)
