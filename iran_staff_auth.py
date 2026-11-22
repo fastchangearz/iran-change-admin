@@ -139,3 +139,41 @@ def verify_totp(secret, submitted_code, now=None):
             return True
 
     return False
+
+
+# ==========================================
+# Encrypted MFA Secret Storage
+# ==========================================
+
+import os
+from cryptography.fernet import Fernet, InvalidToken
+
+
+def _mfa_cipher():
+    key = os.environ.get("IRAN_STAFF_FERNET_KEY", "")
+
+    if not key:
+        raise RuntimeError("MFA encryption key is missing")
+
+    return Fernet(key.encode("ascii"))
+
+
+def encrypt_mfa_secret(secret):
+    if not isinstance(secret, str) or not secret:
+        raise ValueError("Invalid MFA secret")
+
+    return _mfa_cipher().encrypt(
+        secret.encode("utf-8")
+    ).decode("ascii")
+
+
+def decrypt_mfa_secret(encrypted_secret):
+    if not isinstance(encrypted_secret, str):
+        raise ValueError("Invalid encrypted MFA secret")
+
+    try:
+        return _mfa_cipher().decrypt(
+            encrypted_secret.encode("ascii")
+        ).decode("utf-8")
+    except InvalidToken:
+        raise ValueError("MFA decryption failed") from None
