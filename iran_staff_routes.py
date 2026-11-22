@@ -280,3 +280,9 @@ def install_staff_routes(app, db_request):
     _db = db_request
     if "iran_staff" not in app.blueprints:
         app.register_blueprint(staff_bp)
+
+# Serve the manager login on the same origin as the API (no CORS or token persistence).
+@staff_bp.route('/portal', methods=['GET'])
+def staff_portal():
+    from flask import send_from_directory
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'iran_staff_login.html')
