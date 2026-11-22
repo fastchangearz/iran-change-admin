@@ -96,3 +96,30 @@ def disable_staff_admin(staff_code):
 def install_staff_routes(app):
     if "iran_staff" not in app.blueprints:
         app.register_blueprint(staff_bp)
+# ==========================================
+# One-time MFA encryption self-test
+# ==========================================
+
+def run_mfa_self_test():
+    from iran_staff_auth import (
+        encrypt_mfa_secret,
+        decrypt_mfa_secret,
+    )
+
+    sample = "IRAN_CHANGE_TEST_ONLY"
+
+    try:
+        encrypted = encrypt_mfa_secret(sample)
+        decrypted = decrypt_mfa_secret(encrypted)
+
+        if decrypted == sample:
+            print("IRAN_STAFF_MFA_TEST: SUCCESS", flush=True)
+        else:
+            print("IRAN_STAFF_MFA_TEST: FAILED", flush=True)
+
+    except Exception:
+        print("IRAN_STAFF_MFA_TEST: FAILED", flush=True)
+
+
+if os.environ.get("IRAN_STAFF_MFA_SELF_TEST") == "true":
+    run_mfa_self_test()
