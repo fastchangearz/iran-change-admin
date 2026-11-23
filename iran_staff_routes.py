@@ -10,7 +10,6 @@ import requests
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
 from flask import Blueprint, current_app, jsonify, request, send_from_directory
-
 from iran_staff_auth import decrypt_mfa_secret, verify_totp
 
 staff_bp = Blueprint("iran_staff", __name__, url_prefix="/staff")
@@ -19,8 +18,6 @@ MANAGER_CODE = "ICA1000"
 PASSWORD_HASHER = PasswordHasher()
 SESSION_TABLE = "iran_staff_auth_sessions"
 ATTEMPT_TABLE = "iran_staff_auth_attempts"
-# The attempts table only permits 'password' and 'mfa'. A distinct identifier
-# keeps recovery attempts separate without changing the existing SQL schema.
 RECOVERY_ATTEMPT_CODE = "ICA1000:recovery"
 
 
@@ -152,7 +149,7 @@ def staff_status():
     return jsonify({
         "service": "Iran Change Staff Authentication",
         "status": "installed", "login_enabled": login_enabled(),
-        "manager_code": MANAGER_CODE, "version": "stage-4-recovery",
+        "manager_code": MANAGER_CODE, "version": "stage-5-admin-management",
     })
 
 
@@ -247,8 +244,6 @@ def recover_manager_password():
     try:
         if rate_limit(RECOVERY_ATTEMPT_CODE, "password", 5, 15):
             return fail("Too many attempts. Try again later", 429)
-        # The existing attempts schema permits the 'password' stage; the
-        # separate staff_code prevents recovery failures locking normal login.
         record_attempt(RECOVERY_ATTEMPT_CODE, "password")
         expected = os.environ.get("IRAN_STAFF_RECOVERY_KEY", "")
         if len(expected) < 40 or not hmac.compare_digest(recovery_key, expected):
@@ -265,7 +260,6 @@ def recover_manager_password():
             "return=representation")
         if not updated:
             return fail("Password update failed", 503)
-        # Revoke both access tokens and pending challenges.
         db()("PATCH", SESSION_TABLE, {
             "staff_code": "eq." + MANAGER_CODE, "revoked_at": "is.null",
         }, {"revoked_at": iso(now())}, "return=minimal")
@@ -310,19 +304,167 @@ def staff_logout():
         return fail("Logout unavailable", 503)
 
 
+ADMIN_CODE_RE = re.compile(r"ICA[0-9]{4}\Z")
+MAX_PERMISSIONS = 32
+PERMISSION_RE = re.compile(r"[a-z][a-z0-9_]{1,63}\Z")
+
+
+def manager_for_admin_action():
+    if not login_enabled():
+        return None, fail("Login not enabled", 503)
+    account, _ = authenticated_manager()
+    if not account or account.get("role") != "manager" or account.get("staff_code") != MANAGER_CODE:
+        return None, fail("Unauthorized", 401)
+    return account, None
+
+
+def public_admin(row, permissions=None):
+    result = {k: row.get(k) for k in ("id", "staff_code", "full_name", "role", "is_active", "created_at", "last_login_at")}
+    if permissions is not None:
+        result["permissions"] = permissions
+    return result
+
+
+def validate_permissions(value):
+    allowed = {p.strip() for p in os.environ.get("IRAN_STAFF_ALLOWED_PERMISSIONS", "").split(",") if p.strip()}
+    return ((bool(allowed) or not value) and isinstance(value, list) and len(value) <= MAX_PERMISSIONS
+            and all(isinstance(x, str) and PERMISSION_RE.fullmatch(x) for x in value)
+            and len(set(value)) == len(value) and all(x in allowed for x in value))
+
+
+def admin_rows():
+    return db()( "GET", "iran_staff_accounts", {
+        "select": "id,staff_code,full_name,role,is_active,created_at,last_login_at",
+        "role": "eq.admin", "order": "id.asc", "limit": 1000,
+    })
+
+
 @staff_bp.route("/admins", methods=["GET", "POST"])
 def staff_admins():
-    return fail("Admin management not enabled", 503)
+    _, error = manager_for_admin_action()
+    if error:
+        return error
+    try:
+        if request.method == "GET":
+            admins = admin_rows()
+            ids = [str(a["id"]) for a in admins]
+            grants = []
+            if ids:
+                grants = db()( "GET", "iran_staff_permissions", {
+                    "select": "staff_id,permission", "staff_id": "in.(" + ",".join(ids) + ")",
+                    "limit": 10000,
+                })
+            by_id = {}
+            for grant in grants:
+                by_id.setdefault(grant["staff_id"], []).append(grant["permission"])
+            return jsonify({"admins": [public_admin(a, sorted(by_id.get(a["id"], []))) for a in admins], "count": len(admins)})
+
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return fail("Invalid JSON", 400)
+        name = data.get("full_name")
+        if not isinstance(name, str) or not 2 <= len(name.strip()) <= 120:
+            return fail("Invalid full_name", 400)
+        name = name.strip()
+        password = data.get("password")
+        if password is not None and not valid_new_password(password):
+            return fail("Password must be 12-128 chars with letters and digits", 400)
+        permissions = data.get("permissions", [])
+        if not validate_permissions(permissions):
+            return fail("Invalid permissions", 400)
+        # Never create an account without a valid password hash.
+        # Random candidate codes are checked against the DB unique constraint.
+        # Staff login for admin accounts is a separate future feature.
+        password_hash = PASSWORD_HASHER.hash(password) if password is not None else None
+        for _ in range(15):
+            candidate = "ICA" + str(secrets.randbelow(9000) + 1000)
+            if candidate == MANAGER_CODE:
+                continue
+            try:
+                created = db()( "POST", "iran_staff_accounts", payload=[{
+                    "staff_code": candidate, "full_name": name, "role": "admin",
+                    "password_hash": password_hash, "is_active": False,
+                    "mfa_enabled": False, "setup_attempts": 0,
+                    "created_at": iso(now()), "updated_at": iso(now()),
+                }], prefer="return=representation")
+            except requests.HTTPError as exc:
+                if getattr(exc.response, "status_code", None) == 409:
+                    continue
+                raise
+            if not created:
+                raise ValueError("Account insert returned no record")
+            admin = created[0]
+            # Fail closed: account remains disabled until permissions are saved.
+            if permissions:
+                db()( "POST", "iran_staff_permissions", payload=[
+                    {"staff_id": admin["id"], "permission": p} for p in permissions
+                ], prefer="return=minimal")
+            # This route provisions an inactive account. Activation and MFA enrollment
+            # require a separate secure onboarding flow.
+            return jsonify({"status": "created_inactive", "admin": public_admin(admin, permissions),
+                            "message": "Account created inactive; secure activation and MFA enrollment required"}), 201
+        return fail("Unable to allocate unique staff code", 409)
+    except (requests.RequestException, RuntimeError, ValueError, TypeError, KeyError) as exc:
+        log_error("ADMINS", exc)
+        return fail("Admin management unavailable", 503)
 
 
 @staff_bp.route("/admins/<staff_code>/permissions", methods=["PUT"])
 def update_staff_permissions(staff_code):
-    return fail("Admin management not enabled", 503)
+    _, error = manager_for_admin_action()
+    if error:
+        return error
+    if not ADMIN_CODE_RE.fullmatch(staff_code) or staff_code == MANAGER_CODE:
+        return fail("Invalid admin code", 400)
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not validate_permissions(data.get("permissions")):
+        return fail("Invalid permissions", 400)
+    try:
+        admin = account_by_code(staff_code)
+        if not admin or admin.get("role") != "admin":
+            return fail("Admin not found", 404)
+        wanted = set(data["permissions"])
+        rows = db()( "GET", "iran_staff_permissions", {
+            "select": "permission", "staff_id": "eq." + str(admin["id"]), "limit": 1000,
+        })
+        existing = {r["permission"] for r in rows}
+        # Add before removing to avoid losing all existing grants on insert failure.
+        additions = sorted(wanted - existing)
+        if additions:
+            db()( "POST", "iran_staff_permissions", payload=[
+                {"staff_id": admin["id"], "permission": p} for p in additions
+            ], prefer="return=minimal")
+        for permission in sorted(existing - wanted):
+            db()( "DELETE", "iran_staff_permissions", {
+                "staff_id": "eq." + str(admin["id"]), "permission": "eq." + permission,
+            }, prefer="return=minimal")
+        return jsonify({"status": "updated", "staff_code": staff_code, "permissions": sorted(wanted)})
+    except (requests.RequestException, RuntimeError, ValueError, TypeError, KeyError) as exc:
+        log_error("PERMISSIONS", exc)
+        return fail("Permission update unavailable", 503)
 
 
 @staff_bp.route("/admins/<staff_code>/disable", methods=["POST"])
 def disable_staff_admin(staff_code):
-    return fail("Admin management not enabled", 503)
+    _, error = manager_for_admin_action()
+    if error:
+        return error
+    if not ADMIN_CODE_RE.fullmatch(staff_code) or staff_code == MANAGER_CODE:
+        return fail("Invalid admin code", 400)
+    try:
+        admin = account_by_code(staff_code)
+        if not admin or admin.get("role") != "admin":
+            return fail("Admin not found", 404)
+        db()( "PATCH", "iran_staff_accounts", {
+            "staff_code": "eq." + staff_code, "role": "eq.admin",
+        }, {"is_active": False, "updated_at": iso(now())}, "return=minimal")
+        db()( "PATCH", SESSION_TABLE, {
+            "staff_code": "eq." + staff_code, "revoked_at": "is.null",
+        }, {"revoked_at": iso(now())}, "return=minimal")
+        return jsonify({"status": "disabled", "staff_code": staff_code})
+    except (requests.RequestException, RuntimeError, ValueError, TypeError, KeyError) as exc:
+        log_error("DISABLE", exc)
+        return fail("Disable unavailable", 503)
 
 
 @staff_bp.route("/portal", methods=["GET"])
