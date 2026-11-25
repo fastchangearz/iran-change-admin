@@ -576,7 +576,8 @@ install_user_minichat_routes(app, db_request)
 
 from iran_staff_routes import install_staff_routes
 install_staff_routes(app, db_request)
-
+from iran_center_routes import install_center
+install_center(app, db_request)
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
