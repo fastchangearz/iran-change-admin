@@ -40,3 +40,41 @@ def install_center(app, db):
             return jsonify(messages=list(reversed(rows)))
         except (requests.RequestException,RuntimeError,ValueError,TypeError):
             app.logger.exception('Center messages failed');return jsonify(error='Database unavailable'),503
+    @app.get('/center/api/threads/<int:agreement_id>')
+    def center_threads(agreement_id):
+        try:
+            account, token = authenticated_manager()
+
+            if not account or not token:
+                return jsonify(error='Unauthorized'), 401
+
+            if account.get('role') != 'manager':
+                return jsonify(error='Forbidden'), 403
+
+            agreements = db(
+                'GET', 'iran_chat_agreements',
+                {
+                    'select': 'agreement_id,status',
+                    'agreement_id': f'eq.{agreement_id}',
+                    'limit': 1
+                }
+            )
+
+            if not agreements:
+                return jsonify(error='Agreement not found'), 404
+
+            rows = db(
+                'GET', 'iran_chat_threads',
+                {
+                    'select': 'thread_id,agreement_id,participant_role,created_at',
+                    'agreement_id': f'eq.{agreement_id}',
+                    'order': 'thread_id.asc'
+                }
+            )
+
+            return jsonify(threads=rows)
+
+        except (requests.RequestException, RuntimeError,
+                ValueError, KeyError, TypeError):
+            app.logger.exception('Center threads failed')
+            return jsonify(error='Database unavailable'), 503
