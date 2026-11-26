@@ -37,12 +37,64 @@ def install_business_routes(app, db, authorized):
         ):
             return jsonify(error='Invalid message'), 400
 
-        try:
-            identity = {
-                'business_connection_id': f'eq.{connection_id}',
-                'telegram_chat_id': f'eq.{chat_id}',
-                'telegram_message_id': f'eq.{message_id}'
+        identity = {
+            'business_connection_id': f'eq.{connection_id}',
+            'telegram_chat_id': f'eq.{chat_id}',
+            'telegram_message_id': f'eq.{message_id}'
+        }
+
+        def save_pending(reason, candidates):
+
+            row = {
+                'business_connection_id': connection_id,
+                'telegram_chat_id': chat_id,
+                'telegram_message_id': message_id,
+                'sender_id': sender_id,
+                'message_text': text,
+                'routing_status': 'pending',
+                'routing_reason': reason,
+                'candidate_threads': candidates
             }
+
+            try:
+                saved = db(
+                    'POST',
+                    'iran_business_inbox',
+                    payload=[row],
+                    prefer='return=representation'
+                )
+
+            except requests.HTTPError as exc:
+
+                if (
+                    exc.response is not None
+                    and exc.response.status_code == 409
+                ):
+                    existing = db(
+                        'GET',
+                        'iran_business_inbox',
+                        {
+                            **identity,
+                            'select': 'inbox_id,routing_status',
+                            'limit': 1
+                        }
+                    )
+
+                    if existing:
+                        return jsonify(
+                            status='already_queued',
+                            inbox_id=existing[0]['inbox_id']
+                        ), 200
+
+                raise
+
+            return jsonify(
+                status='queued',
+                reason=reason,
+                inbox_id=saved[0]['inbox_id']
+            ), 200
+
+        try:
 
             existing = db(
                 'GET',
@@ -58,7 +110,23 @@ def install_business_routes(app, db, authorized):
                 return jsonify(
                     status='already_saved',
                     message_id=existing[0]['message_id']
-                )
+                ), 200
+
+            queued = db(
+                'GET',
+                'iran_business_inbox',
+                {
+                    **identity,
+                    'select': 'inbox_id,routing_status',
+                    'limit': 1
+                }
+            )
+
+            if queued:
+                return jsonify(
+                    status='already_queued',
+                    inbox_id=queued[0]['inbox_id']
+                ), 200
 
             threads = db(
                 'GET',
@@ -74,6 +142,7 @@ def install_business_routes(app, db, authorized):
             )
 
             active_threads = []
+            candidates = []
 
             for thread in threads:
 
@@ -81,7 +150,9 @@ def install_business_routes(app, db, authorized):
                     'GET',
                     'iran_chat_agreements',
                     {
-                        'select': 'agreement_id,status',
+                        'select': (
+                            'agreement_id,ad_id,offer_id,status'
+                        ),
                         'agreement_id': (
                             f"eq.{thread['agreement_id']}"
                         ),
@@ -91,39 +162,56 @@ def install_business_routes(app, db, authorized):
                 )
 
                 if agreements:
+
+                    agreement = agreements[0]
+
                     active_threads.append(thread)
 
+                    candidates.append({
+                        'thread_id': thread['thread_id'],
+                        'agreement_id': agreement['agreement_id'],
+                        'ad_id': agreement['ad_id'],
+                        'offer_id': agreement['offer_id'],
+                        'participant_role': thread['participant_role']
+                    })
+
             if not active_threads:
-                return jsonify(
-                    error='No active agreement'
-                ), 404
+                return save_pending(
+                    'no_active_agreement',
+                    candidates
+                )
 
             if len(active_threads) != 1:
-                return jsonify(
-                    error='Multiple active agreements',
-                    status='manual_routing_required'
-                ), 409
+                return save_pending(
+                    'multiple_active_agreements',
+                    candidates
+                )
 
             thread = active_threads[0]
             thread_id = thread['thread_id']
             role = thread['participant_role']
 
             if role not in ('owner', 'proposer'):
-                return jsonify(error='Invalid role'), 409
+                return save_pending(
+                    'invalid_role',
+                    candidates
+                )
 
             if thread.get('business_connection_id') not in (
                 None, connection_id
             ):
-                return jsonify(
-                    error='Connection mismatch'
-                ), 409
+                return save_pending(
+                    'connection_mismatch',
+                    candidates
+                )
 
             if thread.get('telegram_chat_id') not in (
                 None, chat_id
             ):
-                return jsonify(
-                    error='Chat mismatch'
-                ), 409
+                return save_pending(
+                    'chat_mismatch',
+                    candidates
+                )
 
             db(
                 'PATCH',
@@ -177,7 +265,7 @@ def install_business_routes(app, db, authorized):
                         return jsonify(
                             status='already_saved',
                             message_id=duplicate[0]['message_id']
-                        )
+                        ), 200
 
                 raise
 
