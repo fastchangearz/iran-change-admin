@@ -24,6 +24,12 @@ footer{display:flex;gap:6px}
 button:disabled{opacity:.5}
 form{display:grid;gap:12px}
 .gold{color:#e7c681}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.inbox-card{background:#203246;border:1px solid #344557;border-radius:14px;padding:15px;margin:12px 0}
+.inbox-button{color:#e7c681;border:1px solid #8c754a}
+.inbox-count{color:#e7c681;font-weight:bold;padding:10px 0}
+.inbox-message{white-space:pre-wrap;overflow-wrap:anywhere;background:#263b50;border-radius:12px;padding:14px;margin:12px 0}
+.candidate{padding:12px 4px;border-bottom:1px solid #344557}
 </style>
 
 <main>
@@ -63,6 +69,7 @@ function node(tag,text,parent){
 
 function btn(text,fn,parent=root){
     const b = node('button',text,parent);
+    b.type = 'button';
     b.onclick = fn;
     return b;
 }
@@ -91,6 +98,8 @@ async function api(path,body){
 
 function clear(v,title){
     generation++;
+    clearInterval(timer);
+    timer = null;
     view = v;
     root.replaceChildren();
     foot.replaceChildren();
@@ -115,6 +124,7 @@ function login(mfa=false){
     p.required = !mfa;
 
     const b = node('button','ورود',f);
+    b.type = 'submit';
 
     f.onsubmit = async e => {
         e.preventDefault();
@@ -148,6 +158,8 @@ function login(mfa=false){
 async function loadCases(){
     clear('list','حواله‌های ایران چنج ارز');
 
+    const g = generation;
+
     try{
         let all = [], before;
 
@@ -156,6 +168,8 @@ async function loadCases(){
                 '/center/api/cases' +
                 (before ? '?before='+before : '')
             );
+
+            if(g !== generation) return;
 
             all.push(...x.cases);
 
@@ -169,6 +183,7 @@ async function loadCases(){
         renderList();
 
     }catch(e){
+        if(g !== generation) return;
         err(e);
         btn('تلاش مجدد',loadCases);
     }
@@ -178,6 +193,7 @@ function renderList(){
     clear('list','حواله‌های ایران چنج ارز');
 
     const bar = node('div',null,root);
+    bar.className = 'toolbar';
 
     btn(
         archive ? 'بازگشت به فعال' : 'بایگانی',
@@ -190,10 +206,23 @@ function renderList(){
 
     btn('به‌روزرسانی',loadCases,bar);
 
+    const inboxButton = btn(
+        '📥 صندوق انتظار',
+        openInbox,
+        bar
+    );
+
+    inboxButton.className = 'inbox-button';
+
     btn('خروج',async()=>{
         try{
             await api('/staff/logout',{});
             token = '';
+            challenge = '';
+            cases = [];
+            history = [];
+            selected = null;
+            thread = null;
             login();
         }catch(e){
             err(e);
@@ -256,6 +285,200 @@ function renderList(){
     draw();
 }
 
+async function openInbox(){
+
+    clear('inbox','📥 صندوق انتظار پیام‌ها');
+
+    const bar = node('div',null,root);
+    bar.className = 'toolbar';
+
+    btn('بازگشت',renderList,bar);
+    btn('به‌روزرسانی',openInbox,bar);
+
+    const count = node('div','در حال دریافت پیام‌ها...',root);
+    count.className = 'inbox-count';
+
+    const area = node('div',null,root);
+
+    const more = btn(
+        'پیام‌های قدیمی‌تر',
+        ()=>loadPage(),
+        root
+    );
+
+    more.hidden = true;
+
+    const g = generation;
+
+    let before = null;
+    let loaded = 0;
+    let loading = false;
+
+    const reasons = {
+        multiple_active_agreements:'چند پرونده فعال',
+        no_active_agreement:'بدون پرونده فعال',
+        connection_mismatch:'عدم تطابق اتصال',
+        chat_mismatch:'عدم تطابق گفتگو',
+        invalid_role:'نقش نامعتبر'
+    };
+
+    function drawMessage(m){
+
+        const card = node('div',null,area);
+        card.className = 'inbox-card';
+
+        node(
+            'strong',
+            '📩 پیام شماره '+m.inbox_id,
+            card
+        ).className = 'gold';
+
+        const message = node(
+            'div',
+            m.message_text || '',
+            card
+        );
+
+        message.className = 'inbox-message';
+
+        node(
+            'small',
+            'شناسه فرستنده: '+m.sender_id,
+            card
+        );
+
+        node(
+            'small',
+            m.created_at
+                ? new Date(m.created_at).toLocaleString('fa-IR')
+                : '',
+            card
+        );
+
+        node(
+            'small',
+            'وضعیت: در انتظار بررسی',
+            card
+        );
+
+        node(
+            'small',
+            'علت انتظار: '+
+            (reasons[m.routing_reason] || 'نیازمند بررسی'),
+            card
+        );
+
+        const candidates =
+            Array.isArray(m.candidate_threads)
+            ? m.candidate_threads : [];
+
+        node(
+            'p',
+            'پرونده‌های احتمالی: '+candidates.length,
+            card
+        ).className = 'gold';
+
+        for(const c of candidates){
+
+            const r = node('div',null,card);
+            r.className = 'candidate';
+
+            node(
+                'strong',
+                '📁 حواله '+c.ad_id+
+                ' | پیشنهاد '+c.offer_id,
+                r
+            );
+
+            node(
+                'small',
+                c.participant_role === 'owner'
+                    ? 'صاحب آگهی'
+                    : c.participant_role === 'proposer'
+                    ? 'پیشنهاددهنده'
+                    : 'نقش نامشخص',
+                r
+            );
+        }
+
+        if(!candidates.length){
+            node(
+                'small',
+                'پرونده فعالی برای این پیام پیدا نشده است.',
+                card
+            );
+        }
+
+        const actions = node('div',null,card);
+        actions.className = 'toolbar';
+        actions.style.marginTop = '12px';
+
+        btn('کپی پیام',()=>{
+            navigator.clipboard.writeText(
+                m.message_text || ''
+            ).catch(err);
+        },actions);
+    }
+
+    async function loadPage(){
+
+        if(loading || g !== generation) return;
+
+        loading = true;
+        more.disabled = true;
+        err('');
+
+        try{
+
+            const x = await api(
+                '/center/api/inbox'+
+                (before ? '?before='+before : '')
+            );
+
+            if(g !== generation) return;
+
+            const rows = x.messages;
+
+            for(const m of rows){
+                drawMessage(m);
+            }
+
+            loaded += rows.length;
+
+            count.textContent =
+                'پیام‌های در انتظار نمایش‌داده‌شده: '+loaded;
+
+            if(rows.length){
+                before = rows.at(-1).inbox_id;
+            }
+
+            more.textContent = 'پیام‌های قدیمی‌تر';
+            more.hidden = rows.length < 100;
+
+            if(!loaded){
+                count.textContent = 'صندوق انتظار خالی است.';
+            }
+
+        }catch(e){
+
+            if(g !== generation) return;
+
+            err(e);
+            count.textContent =
+                'پیام‌های دریافت‌شده: '+loaded;
+
+            more.hidden = false;
+            more.textContent = 'تلاش مجدد';
+
+        }finally{
+            loading = false;
+            more.disabled = false;
+        }
+    }
+
+    await loadPage();
+}
+
 async function openCase(c){
     selected = c;
 
@@ -266,9 +489,9 @@ async function openCase(c){
 
     btn('بازگشت',renderList);
 
-    try{
-        const g = generation;
+    const g = generation;
 
+    try{
         const x = await api(
             '/center/api/threads/'+c.agreement_id
         );
@@ -308,7 +531,7 @@ async function openCase(c){
         }
 
     }catch(e){
-        err(e);
+        if(g === generation) err(e);
     }
 }
 
@@ -322,9 +545,11 @@ async function openChat(t,label){
         label+' | حواله '+selected.ad_id
     );
 
+    const chatGeneration = generation;
+
     btn('بازگشت',()=>openCase(selected));
 
-    const older = btn(
+    btn(
         'پیام‌های قدیمی‌تر',
         ()=>refresh(true)
     );
@@ -358,7 +583,7 @@ async function openChat(t,label){
             }
 
         }catch(e){
-            err(e);
+            if(g === generation) err(e);
         }finally{
             busy = false;
             send.disabled = false;
@@ -374,12 +599,20 @@ async function openChat(t,label){
         send.disabled = true;
     }
 
+    let refreshing = false;
+
     await refresh();
 
     async function refresh(old=false){
         const g = generation;
 
-        if(view !== 'chat' || thread !== t) return;
+        if(
+            view !== 'chat' ||
+            thread !== t ||
+            refreshing
+        ) return;
+
+        refreshing = true;
 
         try{
             const x = await api(
@@ -414,6 +647,9 @@ async function openChat(t,label){
                 root.scrollHeight -
                 root.scrollTop -
                 root.clientHeight < 150;
+
+            const previousHeight = root.scrollHeight;
+            const previousTop = root.scrollTop;
 
             area.replaceChildren();
 
@@ -451,14 +687,23 @@ async function openChat(t,label){
                 },b);
             }
 
-            if(!old && near){
+            if(old){
+                root.scrollTop =
+                    previousTop +
+                    root.scrollHeight -
+                    previousHeight;
+            }else if(near){
                 root.scrollTop = root.scrollHeight;
             }
 
         }catch(e){
-            err(e);
+            if(g === generation) err(e);
+        }finally{
+            refreshing = false;
         }
     }
+
+    if(chatGeneration !== generation) return;
 
     clearInterval(timer);
 
