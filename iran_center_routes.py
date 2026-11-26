@@ -78,3 +78,53 @@ def install_center(app, db):
                 ValueError, KeyError, TypeError):
             app.logger.exception('Center threads failed')
             return jsonify(error='Database unavailable'), 503
+    @app.get('/center/api/inbox')
+    def center_inbox():
+        try:
+            account, token = authenticated_manager()
+
+            if not account or not token:
+                return jsonify(error='Unauthorized'), 401
+
+            if account.get('role') != 'manager':
+                return jsonify(error='Forbidden'), 403
+
+            query = {
+                'select': (
+                    'inbox_id,sender_id,message_text,'
+                    'routing_status,routing_reason,'
+                    'candidate_threads,created_at'
+                ),
+                'routing_status': 'eq.pending',
+                'order': 'inbox_id.desc',
+                'limit': 100
+            }
+
+            before = request.args.get('before', type=int)
+
+            if before:
+                query['inbox_id'] = f'lt.{before}'
+
+            rows = db(
+                'GET',
+                'iran_business_inbox',
+                query
+            )
+
+            response = jsonify(messages=rows)
+            response.headers['Cache-Control'] = 'no-store'
+
+            return response
+
+        except (
+            requests.RequestException,
+            RuntimeError,
+            ValueError,
+            KeyError,
+            TypeError
+        ):
+            app.logger.exception('Center inbox failed')
+
+            return jsonify(
+                error='Database unavailable'
+            ), 503
