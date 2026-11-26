@@ -107,7 +107,7 @@ def install_center(app, db):
             q = {
                 'select': (
                     'message_id,sender_role,message_type,'
-                    'message_text,created_at'
+                    'message_text,created_at,delivery_status,delivery_error'
                 ),
                 'thread_id': f'eq.{thread_id}',
                 'order': 'message_id.desc',
