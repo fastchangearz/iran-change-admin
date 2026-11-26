@@ -228,7 +228,7 @@ def install_business_routes(app, db, authorized):
 
             row = {
                 'thread_id': thread_id,
-                'sender_role': role,
+                'sender_role': 'participant',
                 'message_type': 'text',
                 'message_text': text,
                 'business_connection_id': connection_id,
