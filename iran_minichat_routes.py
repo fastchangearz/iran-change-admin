@@ -78,16 +78,25 @@ def install_minichat_routes(app, db_request, admin_authorized, authorized):
             return jsonify({'error': 'Invalid message'}), 400
         try:
             threads = db_request('GET', 'iran_chat_threads',
-                                 {'select': 'thread_id,agreement_id', 'thread_id': f'eq.{thread_id}', 'limit': 1})
+                                 {'select': 'thread_id,agreement_id,participant_id,participant_role,business_connection_id,telegram_chat_id', 'thread_id': f'eq.{thread_id}', 'limit': 1})
             if not threads:
                 return jsonify({'error': 'Thread not found'}), 404
             agreements = db_request('GET', 'iran_chat_agreements',
-                                    {'select': 'status', 'agreement_id': f"eq.{threads[0]['agreement_id']}", 'limit': 1})
+                                    {'select': 'status,owner_id,proposer_id', 'agreement_id': f"eq.{threads[0]['agreement_id']}", 'limit': 1})
             if not agreements or agreements[0]['status'] != 'active':
                 return jsonify({'error': 'Agreement is not active'}), 409
+            t = threads[0]
+            a = agreements[0]
+            role = t['participant_role']
+            if (role not in ('owner', 'proposer') or not t['business_connection_id']
+                    or t['telegram_chat_id'] != t['participant_id']
+                    or a[role + '_id'] != t['participant_id']):
+                return jsonify(error='No verified business recipient'), 409
             rows = db_request('POST', 'iran_chat_messages', payload=[{
                 'thread_id': thread_id, 'sender_role': 'admin',
-                'message_type': 'text', 'message_text': message.strip()
+                'message_type': 'text', 'message_text': message.strip(),
+                'business_connection_id': t['business_connection_id'],
+                'telegram_chat_id': t['telegram_chat_id'], 'delivery_status': 'pending_v2'
             }], prefer='return=representation')
             return jsonify({'message': rows[0]}), 201
         except (requests.RequestException, RuntimeError, ValueError, TypeError, KeyError, IndexError) as exc:
