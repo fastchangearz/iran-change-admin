@@ -6,6 +6,21 @@ import requests
 
 def install_center(app, db):
 
+    @app.get('/center-pwa/<name>')
+    def center_pwa_asset(name):
+        types = {'center.webmanifest': 'application/manifest+json',
+                 'center-sw.js': 'application/javascript',
+                 'center-icon-192.png': 'image/png',
+                 'center-icon-512.png': 'image/png'}
+        if name not in types:
+            return '', 404
+        response = send_file(Path(__file__).with_name(name), mimetype=types[name])
+        response.headers['Cache-Control'] = 'no-cache'
+        if name == 'center-sw.js':
+            response.headers['Service-Worker-Allowed'] = '/'
+        return response
+
+
     @app.get('/center')
     def center_page():
         r = send_file(

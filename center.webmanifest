@@ -1,0 +1,26 @@
+{
+  "id": "/center",
+  "name": "مرکز مدیریت ایران چنج ارز",
+  "short_name": "ایران چنج ارز",
+  "start_url": "/center",
+  "scope": "/center",
+  "display": "standalone",
+  "background_color": "#101b28",
+  "theme_color": "#101b28",
+  "lang": "fa",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/center-pwa/center-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/center-pwa/center-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
