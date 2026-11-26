@@ -21,7 +21,7 @@ small{display:block;color:#aabed0;margin-top:6px}
 .mine{background:#245d87;margin-right:auto}
 footer{display:flex;gap:6px}
 #err{color:#ffb6b6;padding:0 12px}
-button:disabled{opacity:.5}
+button:disabled{opacity:.5;cursor:not-allowed}
 form{display:grid;gap:12px}
 .gold{color:#e7c681}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
@@ -30,6 +30,8 @@ form{display:grid;gap:12px}
 .inbox-count{color:#e7c681;font-weight:bold;padding:10px 0}
 .inbox-message{white-space:pre-wrap;overflow-wrap:anywhere;background:#263b50;border-radius:12px;padding:14px;margin:12px 0}
 .candidate{padding:12px 4px;border-bottom:1px solid #344557}
+.assign-button{display:block;width:100%;margin-top:12px;background:linear-gradient(135deg,#f0d18b,#b58b43);color:#17212d;font-weight:bold}
+.success{color:#79e2ae;padding:10px 0}
 </style>
 
 <main>
@@ -60,6 +62,8 @@ let token = '',
     history = [],
     timer = null;
 
+const assigning = new Set();
+
 function node(tag,text,parent){
     const n = document.createElement(tag);
     if(text != null) n.textContent = text;
@@ -89,7 +93,13 @@ async function api(path,body){
         body:body === undefined ? undefined : JSON.stringify(body)
     });
 
-    const j = await r.json();
+    let j;
+
+    try{
+        j = await r.json();
+    }catch(e){
+        throw Error('پاسخ نامعتبر سرور؛ وضعیت را به‌روزرسانی کنید.');
+    }
 
     if(!r.ok) throw Error(j.error || r.status);
 
@@ -250,18 +260,20 @@ function renderList(){
             const x = node('div',null,r);
             x.className = 'grow';
 
+            const ad = c.ad || {};
+
             node(
                 'strong',
                 'حواله '+c.ad_id+' | '+
-                (c.ad.amount || '')+' '+
-                (c.ad.currency || ''),
+                (ad.amount || '')+' '+
+                (ad.currency || ''),
                 x
             );
 
             node(
                 'small',
                 'پیشنهاد '+c.offer_id+' | '+
-                (c.ad.method || ''),
+                (ad.method || ''),
                 x
             );
 
@@ -295,6 +307,10 @@ async function openInbox(){
     btn('بازگشت',renderList,bar);
     btn('به‌روزرسانی',openInbox,bar);
 
+    const notice = node('div',null,root);
+    notice.className = 'success';
+    notice.setAttribute('role','status');
+
     const count = node('div','در حال دریافت پیام‌ها...',root);
     count.className = 'inbox-count';
 
@@ -321,6 +337,12 @@ async function openInbox(){
         chat_mismatch:'عدم تطابق گفتگو',
         invalid_role:'نقش نامعتبر'
     };
+
+    function updateCount(){
+        count.textContent = loaded
+            ? 'پیام‌های در انتظار نمایش‌داده‌شده: '+loaded
+            : 'پیام دیگری در فهرست فعلی نیست.';
+    }
 
     function drawMessage(m){
 
@@ -378,6 +400,8 @@ async function openInbox(){
             card
         ).className = 'gold';
 
+        const assignmentButtons = [];
+
         for(const c of candidates){
 
             const r = node('div',null,card);
@@ -390,15 +414,134 @@ async function openInbox(){
                 r
             );
 
-            node(
-                'small',
+            const label =
                 c.participant_role === 'owner'
                     ? 'صاحب آگهی'
                     : c.participant_role === 'proposer'
                     ? 'پیشنهاددهنده'
-                    : 'نقش نامشخص',
+                    : 'نقش نامشخص';
+
+            node('small',label,r);
+
+            const assignButton = btn(
+                'اختصاص پیام به این پرونده',
+                async()=>{
+
+                    const inboxId = Number(m.inbox_id);
+                    const threadId = Number(c.thread_id);
+
+                    if(
+                        !Number.isSafeInteger(inboxId) ||
+                        !Number.isSafeInteger(threadId) ||
+                        inboxId <= 0 ||
+                        threadId <= 0
+                    ){
+                        err('شناسه پیام یا گفتگو نامعتبر است.');
+                        return;
+                    }
+
+                    if(assigning.has(inboxId)) return;
+
+                    const confirmed = window.confirm(
+                        'آیا پیام شماره '+inboxId+
+                        ' به پرونده زیر اختصاص داده شود؟\n\n'+
+                        'حواله: '+c.ad_id+'\n'+
+                        'پیشنهاد: '+c.offer_id+'\n'+
+                        'طرف معامله: '+label+'\n\n'+
+                        'لطفاً از انتخاب پرونده صحیح مطمئن شوید.'
+                    );
+
+                    if(!confirmed) return;
+
+                    assigning.add(inboxId);
+
+                    for(const b of assignmentButtons){
+                        b.disabled = true;
+                    }
+
+                    assignButton.textContent =
+                        'در حال اختصاص پیام...';
+
+                    err('');
+                    notice.textContent = '';
+
+                    let success = false;
+
+                    try{
+
+                        const result = await api(
+                            '/center/api/inbox/assign',
+                            {
+                                inbox_id:inboxId,
+                                thread_id:threadId
+                            }
+                        );
+
+                        if(
+                            result.status !== 'assigned' ||
+                            result.inbox_id !== inboxId ||
+                            result.thread_id !== threadId ||
+                            !Number.isSafeInteger(result.message_id) ||
+                            result.message_id <= 0
+                        ){
+                            throw Error(
+                                'نتیجه انتقال نامشخص است؛ صندوق انتظار را به‌روزرسانی کنید.'
+                            );
+                        }
+
+                        success = true;
+
+                        if(g !== generation){
+                            if(view === 'inbox'){
+                                await openInbox();
+                            }
+                            return;
+                        }
+
+                        card.remove();
+
+                        loaded = Math.max(0,loaded-1);
+
+                        updateCount();
+
+                        notice.textContent =
+                            '✓ پیام شماره '+inboxId+
+                            ' به حواله '+c.ad_id+
+                            '، پیشنهاد '+c.offer_id+
+                            ' اختصاص یافت.';
+
+                    }catch(e){
+
+                        if(g === generation){
+                            err(
+                                (e.message || String(e))+
+                                ' ابتدا صندوق انتظار را به‌روزرسانی کنید.'
+                            );
+                        }
+
+                    }finally{
+
+                        assigning.delete(inboxId);
+
+                        if(!success){
+                            assignButton.textContent =
+                                'اختصاص پیام به این پرونده';
+
+                            for(const b of assignmentButtons){
+                                b.disabled = true;
+                            }
+                        }
+                    }
+                },
                 r
             );
+
+            assignButton.className = 'assign-button';
+
+            assignButton.disabled =
+                assigning.has(Number(m.inbox_id));
+
+            assignmentButtons.push(assignButton);
         }
 
         if(!candidates.length){
@@ -439,14 +582,17 @@ async function openInbox(){
 
             const rows = x.messages;
 
+            if(!Array.isArray(rows)){
+                throw Error('فهرست پیام‌ها نامعتبر است.');
+            }
+
             for(const m of rows){
                 drawMessage(m);
             }
 
             loaded += rows.length;
 
-            count.textContent =
-                'پیام‌های در انتظار نمایش‌داده‌شده: '+loaded;
+            updateCount();
 
             if(rows.length){
                 before = rows.at(-1).inbox_id;
@@ -455,7 +601,7 @@ async function openInbox(){
             more.textContent = 'پیام‌های قدیمی‌تر';
             more.hidden = rows.length < 100;
 
-            if(!loaded){
+            if(!loaded && more.hidden){
                 count.textContent = 'صندوق انتظار خالی است.';
             }
 
@@ -464,6 +610,7 @@ async function openInbox(){
             if(g !== generation) return;
 
             err(e);
+
             count.textContent =
                 'پیام‌های دریافت‌شده: '+loaded;
 
@@ -499,7 +646,8 @@ async function openCase(c){
         if(g !== generation) return;
 
         for(const t of x.threads){
-            const type = c.ad.trade_type || '';
+
+            const type = (c.ad || {}).trade_type || '';
 
             const owner = type.includes('خریدار')
                 ? 'خریدار'
@@ -563,8 +711,10 @@ async function openChat(t,label){
     input.placeholder = 'نوشتن پیام...';
     input.maxLength = 4000;
 
+    const active = selected.status === 'active';
+
     const send = btn('ارسال',async()=>{
-        if(busy || !input.value.trim()) return;
+        if(!active || busy || !input.value.trim()) return;
 
         busy = true;
         send.disabled = true;
@@ -586,17 +736,18 @@ async function openChat(t,label){
             if(g === generation) err(e);
         }finally{
             busy = false;
-            send.disabled = false;
+            send.disabled = !active;
         }
     },foot);
 
-    btn('متن آماده',()=>{
+    const template = btn('متن آماده',()=>{
         input.value = 'لطفاً رسید پرداخت را ارسال کنید.';
     },foot);
 
-    if(selected.status !== 'active'){
+    if(!active){
         input.disabled = true;
         send.disabled = true;
+        template.disabled = true;
     }
 
     let refreshing = false;
@@ -678,13 +829,15 @@ async function openChat(t,label){
                     ).catch(err);
                 },b);
 
-                btn('پاسخ',()=>{
+                const reply = btn('پاسخ',()=>{
                     input.value =
                         'در پاسخ به: '+
                         (m.message_text || '')+'\n';
 
                     input.focus();
                 },b);
+
+                reply.disabled = !active;
             }
 
             if(old){
