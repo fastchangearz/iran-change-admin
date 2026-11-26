@@ -3,46 +3,158 @@ from flask import request, jsonify, send_file
 from iran_staff_routes import authenticated_manager
 import requests
 
+
 def install_center(app, db):
+
     @app.get('/center')
     def center_page():
-        r=send_file(Path(__file__).with_name('iran_center.html'))
-        r.headers['Cache-Control']='no-store'
+        r = send_file(
+            Path(__file__).with_name('iran_center.html')
+        )
+        r.headers['Cache-Control'] = 'no-store'
         return r
 
     @app.get('/center/api/cases')
     def cases():
-        account, token=authenticated_manager()
-        if not account or not token: return jsonify(error='Unauthorized'),401
+
+        account, token = authenticated_manager()
+
+        if not account or not token:
+            return jsonify(error='Unauthorized'), 401
+
+        if account.get('role') != 'manager':
+            return jsonify(error='Forbidden'), 403
+
         try:
-            before=request.args.get('before',type=int)
-            q={'select':'agreement_id,ad_id,offer_id,status,created_at','order':'agreement_id.desc','limit':100}
-            if before: q['agreement_id']=f'lt.{before}'
-            rows=db('GET','iran_chat_agreements',q)
+            before = request.args.get('before', type=int)
+
+            q = {
+                'select': (
+                    'agreement_id,ad_id,offer_id,'
+                    'status,created_at'
+                ),
+                'order': 'agreement_id.desc',
+                'limit': 100
+            }
+
+            if before:
+                q['agreement_id'] = f'lt.{before}'
+
+            rows = db(
+                'GET',
+                'iran_chat_agreements',
+                q
+            )
+
             if rows:
-                ids=','.join(str(int(r['ad_id'])) for r in rows)
-                ads=db('GET','iran_ads',{'select':'ad_id,trade_type,amount,currency,method','ad_id':f'in.({ids})'})
-                by={a['ad_id']:a for a in ads}
-                for r in rows: r['ad']=by.get(r['ad_id'],{})
-            return jsonify(cases=rows)
-        except (requests.RequestException,RuntimeError,ValueError,KeyError,TypeError):
-            app.logger.exception('Center cases failed');return jsonify(error='Database unavailable'),503
+
+                ids = ','.join(
+                    str(int(r['ad_id']))
+                    for r in rows
+                )
+
+                ads = db(
+                    'GET',
+                    'iran_ads',
+                    {
+                        'select': (
+                            'ad_id,trade_type,amount,'
+                            'currency,method'
+                        ),
+                        'ad_id': f'in.({ids})'
+                    }
+                )
+
+                by = {
+                    a['ad_id']: a
+                    for a in ads
+                }
+
+                for r in rows:
+                    r['ad'] = by.get(r['ad_id'], {})
+
+            response = jsonify(cases=rows)
+            response.headers['Cache-Control'] = 'no-store'
+
+            return response
+
+        except (
+            requests.RequestException,
+            RuntimeError,
+            ValueError,
+            KeyError,
+            TypeError
+        ):
+            app.logger.exception('Center cases failed')
+
+            return jsonify(
+                error='Database unavailable'
+            ), 503
 
     @app.get('/center/api/messages/<int:thread_id>')
     def messages(thread_id):
-        account,token=authenticated_manager()
-        if not account or not token: return jsonify(error='Unauthorized'),401
+
+        account, token = authenticated_manager()
+
+        if not account or not token:
+            return jsonify(error='Unauthorized'), 401
+
+        if account.get('role') != 'manager':
+            return jsonify(error='Forbidden'), 403
+
         try:
-            q={'select':'message_id,sender_role,message_type,message_text,created_at','thread_id':f'eq.{thread_id}','order':'message_id.desc','limit':100}
-            before=request.args.get('before',type=int)
-            if before:q['message_id']=f'lt.{before}'
-            rows=db('GET','iran_chat_messages',q)
-            return jsonify(messages=list(reversed(rows)))
-        except (requests.RequestException,RuntimeError,ValueError,TypeError):
-            app.logger.exception('Center messages failed');return jsonify(error='Database unavailable'),503
+
+            q = {
+                'select': (
+                    'message_id,sender_role,message_type,'
+                    'message_text,created_at'
+                ),
+                'thread_id': f'eq.{thread_id}',
+                'order': 'message_id.desc',
+                'limit': 100
+            }
+
+            before = request.args.get(
+                'before',
+                type=int
+            )
+
+            if before:
+                q['message_id'] = f'lt.{before}'
+
+            rows = db(
+                'GET',
+                'iran_chat_messages',
+                q
+            )
+
+            response = jsonify(
+                messages=list(reversed(rows))
+            )
+
+            response.headers['Cache-Control'] = 'no-store'
+
+            return response
+
+        except (
+            requests.RequestException,
+            RuntimeError,
+            ValueError,
+            TypeError
+        ):
+            app.logger.exception(
+                'Center messages failed'
+            )
+
+            return jsonify(
+                error='Database unavailable'
+            ), 503
+
     @app.get('/center/api/threads/<int:agreement_id>')
     def center_threads(agreement_id):
+
         try:
+
             account, token = authenticated_manager()
 
             if not account or not token:
@@ -52,7 +164,8 @@ def install_center(app, db):
                 return jsonify(error='Forbidden'), 403
 
             agreements = db(
-                'GET', 'iran_chat_agreements',
+                'GET',
+                'iran_chat_agreements',
                 {
                     'select': 'agreement_id,status',
                     'agreement_id': f'eq.{agreement_id}',
@@ -61,26 +174,48 @@ def install_center(app, db):
             )
 
             if not agreements:
-                return jsonify(error='Agreement not found'), 404
+                return jsonify(
+                    error='Agreement not found'
+                ), 404
 
             rows = db(
-                'GET', 'iran_chat_threads',
+                'GET',
+                'iran_chat_threads',
                 {
-                    'select': 'thread_id,agreement_id,participant_role,created_at',
+                    'select': (
+                        'thread_id,agreement_id,'
+                        'participant_role,created_at'
+                    ),
                     'agreement_id': f'eq.{agreement_id}',
                     'order': 'thread_id.asc'
                 }
             )
 
-            return jsonify(threads=rows)
+            response = jsonify(threads=rows)
+            response.headers['Cache-Control'] = 'no-store'
 
-        except (requests.RequestException, RuntimeError,
-                ValueError, KeyError, TypeError):
-            app.logger.exception('Center threads failed')
-            return jsonify(error='Database unavailable'), 503
+            return response
+
+        except (
+            requests.RequestException,
+            RuntimeError,
+            ValueError,
+            KeyError,
+            TypeError
+        ):
+            app.logger.exception(
+                'Center threads failed'
+            )
+
+            return jsonify(
+                error='Database unavailable'
+            ), 503
+
     @app.get('/center/api/inbox')
     def center_inbox():
+
         try:
+
             account, token = authenticated_manager()
 
             if not account or not token:
@@ -100,7 +235,10 @@ def install_center(app, db):
                 'limit': 100
             }
 
-            before = request.args.get('before', type=int)
+            before = request.args.get(
+                'before',
+                type=int
+            )
 
             if before:
                 query['inbox_id'] = f'lt.{before}'
@@ -123,8 +261,185 @@ def install_center(app, db):
             KeyError,
             TypeError
         ):
-            app.logger.exception('Center inbox failed')
+            app.logger.exception(
+                'Center inbox failed'
+            )
 
             return jsonify(
                 error='Database unavailable'
+            ), 503
+
+    @app.post('/center/api/inbox/assign')
+    def center_inbox_assign():
+
+        try:
+
+            account, token = authenticated_manager()
+
+            if not account or not token:
+                return jsonify(error='Unauthorized'), 401
+
+            if account.get('role') != 'manager':
+                return jsonify(error='Forbidden'), 403
+
+            data = request.get_json(silent=True)
+
+            if not isinstance(data, dict):
+                return jsonify(
+                    error='اطلاعات نامعتبر است.'
+                ), 400
+
+            inbox_id = data.get('inbox_id')
+            thread_id = data.get('thread_id')
+
+            if (
+                type(inbox_id) is not int
+                or type(thread_id) is not int
+                or not 1 <= inbox_id <= 9223372036854775807
+                or not 1 <= thread_id <= 9223372036854775807
+            ):
+                return jsonify(
+                    error='شناسه پیام یا گفتگو نامعتبر است.'
+                ), 400
+
+            result = db(
+                'POST',
+                'rpc/iran_assign_business_message',
+                payload={
+                    'p_inbox_id': inbox_id,
+                    'p_thread_id': thread_id
+                }
+            )
+
+            if type(result) is not int or result <= 0:
+                raise ValueError(
+                    'Invalid assignment response'
+                )
+
+            app.logger.info(
+                'Inbox assignment completed: '
+                'inbox=%s thread=%s message=%s',
+                inbox_id,
+                thread_id,
+                result
+            )
+
+            response = jsonify(
+                status='assigned',
+                inbox_id=inbox_id,
+                thread_id=thread_id,
+                message_id=result,
+                message='پیام با موفقیت به پرونده اختصاص یافت.'
+            )
+
+            response.headers['Cache-Control'] = 'no-store'
+
+            return response, 200
+
+        except requests.HTTPError as exc:
+
+            response = exc.response
+            detail = ''
+            code = ''
+
+            if response is not None:
+                try:
+                    body = response.json()
+
+                    if isinstance(body, dict):
+                        detail = body.get('message', '')
+                        code = body.get('code', '')
+
+                except ValueError:
+                    pass
+
+            errors = {
+                'Inbox message not found': (
+                    'پیام موردنظر پیدا نشد.',
+                    404
+                ),
+                'Message already processed': (
+                    'این پیام قبلاً بررسی شده است.',
+                    409
+                ),
+                'Invalid sender': (
+                    'فرستنده پیام نامعتبر است.',
+                    409
+                ),
+                'Thread is not a candidate': (
+                    'این گفتگو متعلق به پرونده‌های پیشنهادی نیست.',
+                    409
+                ),
+                'Thread not found': (
+                    'گفتگوی موردنظر پیدا نشد.',
+                    404
+                ),
+                'Participant mismatch': (
+                    'فرستنده متعلق به این گفتگو نیست.',
+                    409
+                ),
+                'Agreement not found': (
+                    'پرونده موردنظر پیدا نشد.',
+                    404
+                ),
+                'Agreement is not active': (
+                    'این پرونده دیگر فعال نیست.',
+                    409
+                ),
+                'Owner mismatch': (
+                    'صاحب آگهی مطابقت ندارد.',
+                    409
+                ),
+                'Proposer mismatch': (
+                    'پیشنهاددهنده مطابقت ندارد.',
+                    409
+                ),
+                'Invalid participant role': (
+                    'نقش طرف معامله نامعتبر است.',
+                    409
+                ),
+                'Business connection mismatch': (
+                    'اتصال تلگرام مطابقت ندارد.',
+                    409
+                ),
+                'Telegram chat mismatch': (
+                    'گفتگوی تلگرام مطابقت ندارد.',
+                    409
+                )
+            }
+
+            if isinstance(detail, str) and detail in errors:
+
+                message, status = errors[detail]
+
+                return jsonify(
+                    error=message
+                ), status
+
+            if code == '23505':
+                return jsonify(
+                    error='این پیام قبلاً ثبت شده است.'
+                ), 409
+
+            app.logger.exception(
+                'Inbox assignment database error'
+            )
+
+            return jsonify(
+                error='خطا در اختصاص پیام؛ صندوق انتظار را به‌روزرسانی کنید.'
+            ), 503
+
+        except (
+            requests.RequestException,
+            RuntimeError,
+            ValueError,
+            KeyError,
+            TypeError
+        ):
+            app.logger.exception(
+                'Center inbox assignment failed'
+            )
+
+            return jsonify(
+                error='نتیجه انتقال نامشخص است؛ صندوق انتظار را به‌روزرسانی کنید.'
             ), 503
