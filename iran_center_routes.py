@@ -249,6 +249,15 @@ def install_center(app, db):
                 query
             )
 
+            candidates = [c for row in rows for c in (row.get('candidate_threads') or [])]
+            ids = sorted({int(c['ad_id']) for c in candidates if c.get('ad_id')})
+            if ids:
+                ads = db('GET', 'iran_ads', {'select':'ad_id,trade_type',
+                    'ad_id':'in.(' + ','.join(map(str, ids)) + ')'})
+                types = {a['ad_id']: a.get('trade_type') for a in ads}
+                for c in candidates:
+                    c['trade_type'] = types.get(c.get('ad_id'))
+
             response = jsonify(messages=rows)
             response.headers['Cache-Control'] = 'no-store'
 
