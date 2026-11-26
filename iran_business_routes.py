@@ -290,3 +290,46 @@ def install_business_routes(app, db, authorized):
             return jsonify(
                 error='Database operation failed'
             ), 503
+
+    @app.post('/bot/business/claim-v2')
+    def claim_outgoing_v2():
+        if not authorized():
+            return jsonify(error='Unauthorized'), 401
+        try:
+            rows = db('GET', 'iran_chat_messages', {'select':'*','sender_role':'eq.admin','delivery_status':'eq.pending_v2','order':'message_id.asc','limit':1})
+            if not rows:
+                return jsonify(message=None)
+            m = rows[0]
+            claimed = db('PATCH','iran_chat_messages',{'message_id':f"eq.{m['message_id']}",'delivery_status':'eq.pending_v2'}, {'delivery_status':'uncertain'}, 'return=representation')
+            if not claimed:
+                return jsonify(message=None)
+            t = db('GET','iran_chat_threads',{'thread_id':f"eq.{m['thread_id']}",'select':'*'})[0]
+            a = db('GET','iran_chat_agreements',{'agreement_id':f"eq.{t['agreement_id']}",'select':'*'})[0]
+            role = t['participant_role']
+            if (a['status'] != 'active' or role not in ('owner','proposer') or a[role+'_id'] != t['participant_id'] or t['participant_id'] != m['telegram_chat_id'] or t['telegram_chat_id'] != m['telegram_chat_id'] or not m['business_connection_id'] or t['business_connection_id'] != m['business_connection_id']):
+                db('PATCH','iran_chat_messages',{'message_id':f"eq.{m['message_id']}"},{'delivery_status':'failed','delivery_error':'Recipient or agreement invalid'})
+                return jsonify(message=None)
+            return jsonify(message=m)
+        except Exception:
+            app.logger.exception('Outgoing claim failed')
+            return jsonify(error='Claim failed'),503
+
+    @app.post('/bot/business/result-v2')
+    def outgoing_result_v2():
+        if not authorized():
+            return jsonify(error='Unauthorized'),401
+        from datetime import datetime, timezone
+        b = request.get_json(silent=True) or {}
+        mid, status = b.get('message_id'), b.get('status')
+        if type(mid) is not int or status not in ('sent','failed','uncertain'):
+            return jsonify(error='Invalid result'),400
+        patch = {'delivery_status':status,'delivery_error':str(b.get('error') or '')[:200] or None}
+        if status == 'sent':
+            if type(b.get('telegram_message_id')) is not int:
+                return jsonify(error='Invalid Telegram ID'),400
+            patch.update(telegram_message_id=b['telegram_message_id'],delivered_at=datetime.now(timezone.utc).isoformat())
+        try:
+            rows = db('PATCH','iran_chat_messages',{'message_id':f'eq.{mid}','sender_role':'eq.admin','delivery_status':'eq.uncertain'},patch,'return=representation')
+            return jsonify(updated=bool(rows))
+        except Exception:
+            return jsonify(error='Result not saved'),503
