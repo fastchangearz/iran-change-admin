@@ -181,13 +181,29 @@ def install_business_routes(app, db, authorized):
                     candidates
                 )
 
-            if len(active_threads) != 1:
-                return save_pending(
-                    'multiple_active_agreements',
-                    candidates
-                )
-
-            thread = active_threads[0]
+            # The latest confirmed outgoing message establishes the current case.
+            # Never infer a new case from an older successful message if a newer
+            # outgoing attempt is pending, failed, or uncertain.
+            outgoing = db('GET', 'iran_chat_messages', {
+                'select': 'thread_id,delivery_status',
+                'business_connection_id': f'eq.{connection_id}',
+                'telegram_chat_id': f'eq.{chat_id}',
+                'sender_role': 'eq.admin',
+                'delivery_status': 'in.(pending_v2,uncertain,sent,failed)',
+                'order': 'message_id.desc', 'limit': 1
+            })
+            if outgoing:
+                latest = outgoing[0]
+                if latest['delivery_status'] != 'sent':
+                    return save_pending('outgoing_not_confirmed', candidates)
+                thread = next((t for t in active_threads
+                               if t['thread_id'] == latest['thread_id']), None)
+                if thread is None:
+                    return save_pending('current_agreement_closed', candidates)
+            elif len(active_threads) == 1:
+                thread = active_threads[0]
+            else:
+                return save_pending('multiple_active_agreements', candidates)
             thread_id = thread['thread_id']
             role = thread['participant_role']
 
