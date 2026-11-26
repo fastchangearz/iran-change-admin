@@ -216,13 +216,10 @@ function renderList(){
 
     btn('به‌روزرسانی',loadCases,bar);
 
-    const inboxButton = btn(
-        '📥 صندوق انتظار',
-        openInbox,
-        bar
-    );
-
-    inboxButton.className = 'inbox-button';
+    if(archive){
+        const inboxButton = btn('پیام‌های نیازمند بررسی',openInbox,bar);
+        inboxButton.className = 'inbox-button';
+    }
 
     btn('خروج',async()=>{
         try{
@@ -414,12 +411,9 @@ async function openInbox(){
                 r
             );
 
-            const label =
-                c.participant_role === 'owner'
-                    ? 'صاحب آگهی'
-                    : c.participant_role === 'proposer'
-                    ? 'پیشنهاددهنده'
-                    : 'نقش نامشخص';
+            const type = c.trade_type || '';
+            const owner = type.includes('خریدار') ? 'خریدار' : type.includes('فروشنده') ? 'فروشنده' : '';
+            const label = owner && ['owner','proposer'].includes(c.participant_role) ? (c.participant_role === 'owner' ? owner : owner === 'خریدار' ? 'فروشنده' : 'خریدار') : 'طرف معامله (نقش نامشخص)';
 
             node('small',label,r);
 
@@ -664,9 +658,7 @@ async function openCase(c){
                     : 'خریدار'
                 )
                 : (
-                    t.participant_role === 'owner'
-                    ? 'صاحب آگهی'
-                    : 'پیشنهاددهنده'
+                    'طرف معامله (نقش نامشخص)'
                 );
 
             const b = btn(
