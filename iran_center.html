@@ -823,6 +823,7 @@ async function openChat(t,label){
                     b
                 );
 
+                if(m.sender_role === 'admin') node('small', ({pending_v2:'در صف ارسال',sent:'ارسال شد',failed:'ارسال ناموفق',uncertain:'نتیجه نامشخص؛ ارسال مجدد نکنید'})[m.delivery_status] || 'پیام قدیمی؛ ارسال تأیید نشده', b);
                 btn('کپی',()=>{
                     navigator.clipboard.writeText(
                         m.message_text || ''
