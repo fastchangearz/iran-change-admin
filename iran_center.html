@@ -37,7 +37,7 @@ form{display:grid;gap:12px}
 .assign-button{display:block;width:100%;margin-top:12px;background:linear-gradient(135deg,#f0d18b,#b58b43);color:#17212d;font-weight:bold}
 .success{color:#79e2ae;padding:10px 0}
  .ica-templates{width:min(92vw,480px);max-height:80dvh;overflow:auto;background:#142438;color:#eef3f8;border:1px solid #b58b43;border-radius:18px;padding:16px;direction:rtl} .ica-templates::backdrop{background:#0009} .ica-templates h3,.ica-templates h4{color:#e7c681} .ica-templates input{margin:12px 0} .ica-templates button{display:block;width:100%;text-align:right;margin:8px 0} .ica-templates small{line-height:1.8} footer button{white-space:nowrap;padding:8px} footer textarea{min-width:0}
-</style>
+ .compact .tc-head,.compact .tc-line{display:flex;align-items:center;gap:8px}.compact .tc-head strong,.compact .tc-line button:first-child{flex:1}.compact .tc-head button,.compact .tc-line button:last-child{width:42px;text-align:center}.compact .tc-line button{margin:2px 0;padding:10px;background:transparent;border:0}.compact .tc-line{border-bottom:1px solid #35445c}.compact input,.compact textarea{width:100%}.compact .tc-add{background:#d9b66b;color:#101010;text-align:center}</style>
 
 <main>
 <header id="head">ایران چنج ارز | مرکز مدیریت</header>
@@ -654,7 +654,7 @@ async function openCase(c){
                 ? 'فروشنده'
                 : '';
 
-            const label = owner
+            const label = owner && ['owner','proposer'].includes(t.participant_role)
                 ? (
                     t.participant_role === 'owner'
                     ? owner
@@ -760,67 +760,21 @@ async function openChat(t,label){
         ]
     };
     const template = btn('متون آماده',()=>{
-        if(!active || busy || generation !== chatGeneration) return;
-        const dialog = node('dialog',null,document.body);
-        dialog.className = 'ica-templates';
-        const close = ()=>dialog.close();
-        dialog.addEventListener('close',()=>dialog.remove(),{once:true});
-        node('h3','متون آماده | '+label,dialog);
-        btn('بستن',close,dialog);
-        const status = node('p','',dialog);
-        const editor = node('div',null,dialog);
-        const search = node('input',null,dialog);
-        search.placeholder = 'جستجوی متن آماده';
-        const list = node('div',null,dialog);
-        let saved=[], ready=false, saving=false;
-        const endpoint='/center/api/templates';
-        const choose = body=>{
-            if(generation !== chatGeneration || !active || busy){close();return;}
-            if(input.value.trim() && !confirm('متن فعلی جایگزین شود؟')) return;
-            input.value=body; close(); input.focus();
-        };
-        function edit(row){
-            if(!ready || saving) return;
-            editor.replaceChildren();
-            node('h4',row?'ویرایش متن':'افزودن متن جدید',editor);
-            const category=node('select',null,editor);
-            for(const group of ['خریدار','فروشنده','مشترک']){const o=node('option',group,category);o.value=group;}
-            category.value=row?.category || (templates[label]?label:'مشترک');
-            const title=node('input',null,editor);title.placeholder='عنوان';title.maxLength=120;title.value=row?.title||'';
-            const body=node('textarea',null,editor);body.placeholder='متن پیام';body.rows=5;body.maxLength=4000;body.value=row?.body||'';body.style.width='100%';
-            btn('انصراف',()=>{if(!saving)editor.replaceChildren();},editor);
-            const save=btn('ذخیره متن',async()=>{
-                if(saving || !dialog.open) return;
-                if(!title.value.trim() || !body.value.trim()){status.textContent='عنوان و متن را وارد کنید.';return;}
-                saving=true;save.disabled=true;
-                try{await api(endpoint,{action:row?'update':'create',id:row?.id,category:category.value,title:title.value.trim(),body:body.value.trim()});editor.replaceChildren();await load();}
-                catch(e){status.textContent=e.message;}finally{saving=false;save.disabled=false;}
-            },editor);
-        }
-        const add=btn('＋ افزودن متن آماده',()=>edit(null),dialog);add.disabled=true;
-        const manage=btn('مدیریت همه دسته‌ها',()=>{all=!all;manage.textContent=all?'نمایش متون این گفتگو':'مدیریت همه دسته‌ها';draw();},dialog);
-        let all=false;
-        function draw(){
-            list.replaceChildren();
-            const groups=all?Object.keys(templates):[label,'مشترک'].filter((v,i,a)=>a.indexOf(v)===i && templates[v]);
-            for(const group of groups){
-                node('h4',group,list);
-                for(const row of saved.filter(r=>r.category===group)){
-                    if(!(row.title+' '+row.body).includes(search.value.trim()))continue;
-                    const item=node('div',null,list);
-                    if(!all){const b=btn(row.title,()=>choose(row.body),item);node('small',row.body,b);}else{node('strong',row.title,item);node('p',row.body,item);}
-                    btn('ویرایش',()=>edit(row),item);
-                    btn('حذف',async()=>{if(saving || !confirm('این متن حذف شود؟'))return;saving=true;try{await api(endpoint,{action:'delete',id:row.id});await load();}catch(e){status.textContent=e.message;}finally{saving=false;}},item);
-                }
-                if(!all)for(const [title,body] of templates[group]){
-                    if(!(title+' '+body).includes(search.value.trim()))continue;
-                    const b=btn(title,()=>choose(body+'\n\nICA | IRAN CHANGE ARZ'),list);node('small',body,b);
-                }
-            }
-        }
-        async function load(){ready=false;add.disabled=true;status.textContent='در حال دریافت متون...';try{const result=await api(endpoint);if(!Array.isArray(result.templates))throw Error('پاسخ نامعتبر');saved=result.templates;ready=true;add.disabled=false;status.textContent='';}catch(e){status.textContent='خطا در دریافت متون: '+e.message;}draw();}
-        btn('به‌روزرسانی فهرست',()=>{if(!saving)load();},dialog);
-        search.oninput=draw;draw();dialog.showModal();load();
+        if(!active || busy || generation !== chatGeneration || !['خریدار','فروشنده'].includes(label)) return;
+        const d=node('dialog',null,document.body); d.className='ica-templates compact';
+        d.addEventListener('close',()=>d.remove(),{once:true});
+        const head=node('div',null,d);head.className='tc-head';node('strong','متون '+label,head);btn('×',()=>d.close(),head);
+        const q=node('input',null,d);q.placeholder='جستجوی متن';
+        const status=node('div','',d), list=node('div',null,d), panel=node('div',null,d);
+        const add=btn('＋ افزودن متن',()=>edit(null),d);add.className='tc-add';
+        const endpoint='/center/api/templates';let rows=[],locked=false;
+        function choose(r){if(generation!==chatGeneration||!active||busy)return;if(input.value.trim()&&!confirm('متن فعلی جایگزین شود؟'))return;input.value=r.body;d.close();input.focus();}
+        async function mutate(data){if(locked)return;locked=true;try{await api(endpoint,data);panel.replaceChildren();await load();}catch(e){status.textContent=e.message;}finally{locked=false;}}
+        function edit(r){panel.replaceChildren();const t=node('input',null,panel);t.placeholder='عنوان';t.maxLength=120;t.value=r?.title||'';const v=node('textarea',null,panel);v.placeholder='متن پیام';v.rows=5;v.maxLength=4000;v.value=r?.body||'';btn('ذخیره',()=>{if(t.value.trim()&&v.value.trim())mutate({action:r?'update':'create',id:r?.id,category:label,title:t.value.trim(),body:v.value.trim()});},panel);btn('انصراف',()=>panel.replaceChildren(),panel);t.focus();}
+        function menu(r){panel.replaceChildren();node('strong',r.title,panel);btn('ویرایش',()=>edit(r),panel);btn('کپی',async()=>{try{await navigator.clipboard.writeText(r.body);panel.replaceChildren();}catch(e){status.textContent='کپی انجام نشد';}},panel);btn(r.position<0?'برداشتن سنجاق':'سنجاق کردن',()=>mutate({action:'update',id:r.id,category:label,title:r.title,body:r.body,position:r.position<0?0:-1}),panel);btn('حذف',()=>{if(confirm('متن حذف شود؟'))mutate({action:'delete',id:r.id});},panel);btn('بستن',()=>panel.replaceChildren(),panel);}
+        function draw(){list.replaceChildren();for(const r of rows.filter(r=>(r.title+' '+r.body).includes(q.value.trim()))){const line=node('div',null,list);line.className='tc-line';let timer,held=false;const pick=btn((r.position<0?'📌 ':'')+r.title,()=>{if(!held)choose(r);held=false;},line);pick.onpointerdown=()=>{held=false;timer=setTimeout(()=>{held=true;menu(r)},550)};pick.onpointerup=pick.onpointercancel=pick.onpointerleave=()=>clearTimeout(timer);pick.oncontextmenu=e=>{e.preventDefault();clearTimeout(timer);held=true;menu(r)};btn('⋮',()=>menu(r),line);}}
+        async function load(){add.disabled=true;try{const x=await api(endpoint);rows=x.templates.filter(r=>r.category===label);status.textContent='';draw();add.disabled=false;}catch(e){status.textContent=e.message;}}
+        q.oninput=draw;d.showModal();load();
     },foot);
 
     if(!active){
