@@ -37,6 +37,8 @@ form{display:grid;gap:12px}
 .assign-button{display:block;width:100%;margin-top:12px;background:linear-gradient(135deg,#f0d18b,#b58b43);color:#17212d;font-weight:bold}
 .success{color:#79e2ae;padding:10px 0}
  footer button{white-space:nowrap;padding:8px} footer textarea{min-width:0}
+
+main.chatmode{max-width:none;overflow:hidden} .chatmode header{display:flex;align-items:center;gap:9px;padding:8px 12px;background:#1c2c3e}.chatmode header button{background:transparent;padding:8px}.chatmode header .avatar{border-radius:50%;background:#d6b46c;color:#152332;width:40px;height:40px;display:grid;place-items:center;flex:none}.chatmode section{background:radial-gradient(ellipse at top right,#20384b,#0e1823 75%);padding:10px;overscroll-behavior:contain}.chatmode #messages{display:flex;flex-direction:column;gap:4px}.chatmode .bubble{align-self:flex-start;background:#223447;border-radius:14px 14px 3px 14px;margin:2px 0;padding:9px 11px;touch-action:pan-y;user-select:none}.chatmode .mine{align-self:flex-end;background:#28516b;margin:2px 0;border-radius:14px 14px 14px 3px}.chatmode .bubble small{font-size:10px;text-align:left;margin:4px 0 0}.chatmode footer{flex-direction:column;padding:7px;background:#1b2b3b}.composebar{display:flex;align-items:center;gap:4px;direction:ltr}.composebar textarea{flex:1;resize:none;min-height:42px;max-height:110px;border-radius:22px;padding:10px;direction:rtl}.composebar button{flex:none;background:transparent;font-size:20px}.composebar .sendcircle{background:#d6b46c;color:#152332;border-radius:50%;width:42px;height:42px}.chatdate{align-self:center;background:#263a4b;border-radius:20px;padding:5px 14px;font-size:11px;margin:7px}.chatmenu{position:fixed;inset:0;background:#0008;z-index:100;display:flex;align-items:flex-end;justify-content:center}.chatmenu>div{width:min(100%,760px);background:#1c3042;border-radius:20px 20px 0 0;padding:14px;max-height:75dvh;overflow:auto}.chatmenu button{display:block;width:100%;text-align:right;margin:5px 0}.chatmenu .handle{width:32px;height:4px;background:#72889a;border-radius:4px;margin:0 auto 12px}.chatmode .preview{display:flex;gap:8px;overflow:auto}.chatmode .preview:empty{display:none}.chatmode .preview>div{flex:none;position:relative}.chatmode .preview button{position:absolute;top:0;left:0;padding:4px 9px}.chatmode .replybar{background:#23394a;padding:8px;color:#e7c681;display:flex;align-items:center;gap:8px}.chatmode .replybar[hidden]{display:none}.chatmode .replybar span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 
 <main>
@@ -112,6 +114,8 @@ async function api(path,body){
 }
 
 function clear(v,title){
+    document.querySelector("main").classList.remove("chatmode");
+    document.querySelectorAll(".chatmenu").forEach(x=>x.remove());
     generation++;
     clearInterval(timer);
     timer = null;
@@ -692,19 +696,28 @@ async function openChat(t,label){
 
     const chatGeneration = generation;
 
-    btn('بازگشت',()=>openCase(selected));
+    document.querySelector('main').classList.add('chatmode');
+    const head=$('head'); head.replaceChildren();
+    btn('❯',()=>openCase(selected),head).setAttribute('aria-label','بازگشت');
+    node('div','ICA',head).className='avatar';
+    const title=node('div',label+' | حواله '+selected.ad_id,head); title.style.flex='1'; node('small','گفتگوی خصوصی',title);
+    function menu(items){document.querySelectorAll('.chatmenu').forEach(x=>x.remove());const overlay=node('div',null,document.body);overlay.className='chatmenu';const sheet=node('div',null,overlay);node('div',null,sheet).className='handle';overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};for(const [label,action] of items)btn(label,()=>{overlay.remove();action()},sheet);btn('بستن',()=>overlay.remove(),sheet);}
+    let search='';
+    btn('⋮',()=>menu([['جستجو در پیام‌های بارگذاری‌شده',()=>{const v=prompt('جستجوی پیام',search);if(v!==null){search=v;filterMessages()}}],['پیام‌های قدیمی‌تر',()=>refresh(true)],['آخرین پیام',()=>{root.scrollTop=root.scrollHeight}]]),head);
+    function filterMessages(){area.querySelectorAll('.bubble').forEach(b=>b.style.display=!search||b.textContent.includes(search)?'':'none')}
 
-    btn(
-        'پیام‌های قدیمی‌تر',
-        ()=>refresh(true)
-    );
 
     const area = node('div',null,root);
     area.id = 'messages';
 
     foot.style.display = 'flex';
 
-    const input = node('textarea',null,foot);
+    const replybar=node('div',null,foot);replybar.className='replybar';replybar.hidden=true;
+    const replytext=node('span',null,replybar);let replyQuote='';
+    btn('×',()=>{replyQuote='';replybar.hidden=true},replybar);
+    const preview=node('div',null,foot);preview.className='preview';
+    const bar=node('div',null,foot);bar.className='composebar';
+    const input = node('textarea',null,bar);
     input.placeholder = 'نوشتن پیام...';
     input.maxLength = 4000;
 
@@ -712,8 +725,8 @@ async function openChat(t,label){
 
     const picker = node('input',null,foot);
     picker.type='file'; picker.accept='image/jpeg,image/png'; picker.multiple=true; picker.hidden=true;
-    const attach=btn('📎',()=>picker.click(),foot); attach.disabled=!active; attach.title='انتخاب عکس';
-    const preview=node('div',null,root); preview.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
+    const attach=btn('📎',()=>menu([['🖼 انتخاب عکس از گالری',()=>picker.click()]]),bar); attach.disabled=!active; attach.title='انتخاب عکس';
+
     let photos=[];
     function showPreview(){
         preview.replaceChildren();
@@ -726,7 +739,7 @@ async function openChat(t,label){
         input.placeholder=photos.length?'توضیح عکس (اختیاری)':'نوشتن پیام...';
     }
     picker.onchange=()=>{if(busy)return; for(const f of picker.files){if(f.size<=10*1024*1024 && ['image/jpeg','image/png'].includes(f.type))photos.push(f);else err('فقط JPG یا PNG تا ۱۰ مگابایت');} picker.value='';showPreview();};
-    const send = btn('ارسال',async()=>{
+    const send = btn('➤',async()=>{
         if(!active || busy || (!input.value.trim() && !photos.length)) return;
 
         busy = true;
@@ -736,20 +749,20 @@ async function openChat(t,label){
 
         try{
             if(photos.length){
-                if(input.value.trim().length>1024) throw Error('توضیح حداکثر ۱۰۲۴ نویسه');
+                if((replyQuote?'در پاسخ به: '+replyQuote+'\n':'').length+input.value.trim().length>1024) throw Error('توضیح حداکثر ۱۰۲۴ نویسه');
                 while(photos.length){
-                    const form=new FormData(); form.append('thread_id',t.thread_id); form.append('caption',input.value.trim()); form.append('file',photos[0]);
+                    const form=new FormData(); form.append('thread_id',t.thread_id); form.append('caption',(replyQuote?'در پاسخ به: '+replyQuote+'\n':'')+input.value.trim()); form.append('file',photos[0]);
                     const r=await fetch('/center/api/photo',{method:'POST',headers:{Authorization:'Bearer '+token},body:form,cache:'no-store'});
                     const j=await r.json(); if(!r.ok)throw Error(j.error||'ارسال تأیید نشد');
                     photos.shift();showPreview(); if(g!==generation)break;
                 }
             }else await api('/admin/minichat/send',{
                 thread_id:t.thread_id,
-                message_text:input.value.trim()
+                message_text:(replyQuote ? 'در پاسخ به: '+replyQuote+'\n' : '')+input.value.trim()
             });
 
             if(g === generation){
-                input.value = '';
+                input.value = ''; replyQuote='';replybar.hidden=true;
                 await refresh();
             }
 
@@ -759,8 +772,9 @@ async function openChat(t,label){
             busy = false;
             send.disabled = !active;
         }
-    },foot);
-
+    },bar);
+    send.className='sendcircle';send.setAttribute('aria-label','ارسال');bar.prepend(send,attach);
+    btn('☺',()=>menu(['😀','😂','❤️','👍','🙏','👌','🌹','✅','🤝','😊'].map(e=>[e,()=>{input.value+=e;input.focus()}])),bar).disabled=!active;
     if(!active){
         input.disabled = true;
         send.disabled = true;
@@ -820,7 +834,9 @@ async function openChat(t,label){
 
             area.replaceChildren();
 
+            let lastDay='';
             for(const m of history){
+                const day=m.created_at?new Date(m.created_at).toLocaleDateString('fa-IR'):'';if(day&&day!==lastDay){node('div',day,area).className='chatdate';lastDay=day;}
                 const b = node(
                     'div',
                     m.message_text || 'پیوست',
@@ -847,22 +863,16 @@ async function openChat(t,label){
                 );
 
                 if(m.sender_role === 'admin') node('small', ({pending_v2:'در صف ارسال',sent:'ارسال شد',failed:'ارسال ناموفق',uncertain:'نتیجه نامشخص؛ ارسال مجدد نکنید'})[m.delivery_status] || 'پیام قدیمی؛ ارسال تأیید نشده', b);
-                btn('کپی',()=>{
-                    navigator.clipboard.writeText(
-                        m.message_text || ''
-                    ).catch(err);
-                },b);
-
-                const reply = btn('پاسخ',()=>{
-                    input.value =
-                        'در پاسخ به: '+
-                        (m.message_text || '')+'\n';
-
-                    input.focus();
-                },b);
-
-                reply.disabled = !active;
+                const respond=()=>{if(!active)return;replyQuote=(m.message_text||'').slice(0,500);replytext.textContent='پاسخ متنی: '+replyQuote;replybar.hidden=false;input.focus()};
+                const actions=()=>menu([['پاسخ متنی',respond],['کپی',()=>navigator.clipboard.writeText(m.message_text||'').catch(err)]]);
+                let hold,x,y,fired=false;
+                b.oncontextmenu=e=>{e.preventDefault();actions()};
+                b.onpointerdown=e=>{x=e.clientX;y=e.clientY;fired=false;hold=setTimeout(()=>{fired=true;actions()},500)};
+                b.onpointermove=e=>{if(Math.abs(e.clientX-x)>12||Math.abs(e.clientY-y)>12)clearTimeout(hold)};
+                b.onpointerup=e=>{clearTimeout(hold);if(!fired&&Math.abs(e.clientX-x)>55&&Math.abs(e.clientY-y)<40)respond()};
+                b.onpointercancel=()=>clearTimeout(hold);
             }
+            filterMessages();
 
             if(old){
                 root.scrollTop =
