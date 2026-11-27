@@ -37,6 +37,10 @@ def install_center(app, db):
                 if category not in ('خریدار','فروشنده','مشترک') or not isinstance(title,str) or not isinstance(body,str) or not 1 <= len(title.strip()) <= 120 or not 1 <= len(body.strip()) <= 4000:
                     return jsonify(error='Invalid template'), 400
                 payload = dict(category=category,title=title.strip(),body=body.strip())
+                if 'position' in data:
+                    if type(data['position']) is not int or not -100000 <= data['position'] <= 100000:
+                        return jsonify(error='Invalid position'), 400
+                    payload['position'] = data['position']
                 rows = db('POST' if action == 'create' else 'PATCH', table, filters, payload, 'return=representation')
             if not rows:
                 return jsonify(error='Template not found'), 404
