@@ -767,26 +767,60 @@ async function openChat(t,label){
         dialog.addEventListener('close',()=>dialog.remove(),{once:true});
         node('h3','متون آماده | '+label,dialog);
         btn('بستن',close,dialog);
+        const status = node('p','',dialog);
+        const editor = node('div',null,dialog);
         const search = node('input',null,dialog);
         search.placeholder = 'جستجوی متن آماده';
         const list = node('div',null,dialog);
-        const draw = ()=>{
+        let saved=[], ready=false, saving=false;
+        const endpoint='/center/api/templates';
+        const choose = body=>{
+            if(generation !== chatGeneration || !active || busy){close();return;}
+            if(input.value.trim() && !confirm('متن فعلی جایگزین شود؟')) return;
+            input.value=body; close(); input.focus();
+        };
+        function edit(row){
+            if(!ready || saving) return;
+            editor.replaceChildren();
+            node('h4',row?'ویرایش متن':'افزودن متن جدید',editor);
+            const category=node('select',null,editor);
+            for(const group of ['خریدار','فروشنده','مشترک']){const o=node('option',group,category);o.value=group;}
+            category.value=row?.category || (templates[label]?label:'مشترک');
+            const title=node('input',null,editor);title.placeholder='عنوان';title.maxLength=120;title.value=row?.title||'';
+            const body=node('textarea',null,editor);body.placeholder='متن پیام';body.rows=5;body.maxLength=4000;body.value=row?.body||'';body.style.width='100%';
+            btn('انصراف',()=>{if(!saving)editor.replaceChildren();},editor);
+            const save=btn('ذخیره متن',async()=>{
+                if(saving || !dialog.open) return;
+                if(!title.value.trim() || !body.value.trim()){status.textContent='عنوان و متن را وارد کنید.';return;}
+                saving=true;save.disabled=true;
+                try{await api(endpoint,{action:row?'update':'create',id:row?.id,category:category.value,title:title.value.trim(),body:body.value.trim()});editor.replaceChildren();await load();}
+                catch(e){status.textContent=e.message;}finally{saving=false;save.disabled=false;}
+            },editor);
+        }
+        const add=btn('＋ افزودن متن آماده',()=>edit(null),dialog);add.disabled=true;
+        const manage=btn('مدیریت همه دسته‌ها',()=>{all=!all;manage.textContent=all?'نمایش متون این گفتگو':'مدیریت همه دسته‌ها';draw();},dialog);
+        let all=false;
+        function draw(){
             list.replaceChildren();
-            for(const group of [label,'مشترک'].filter((v,i,a)=>a.indexOf(v)===i && templates[v])){
+            const groups=all?Object.keys(templates):[label,'مشترک'].filter((v,i,a)=>a.indexOf(v)===i && templates[v]);
+            for(const group of groups){
                 node('h4',group,list);
-                for(const [title,body] of templates[group]){
-                    if(!(title+' '+body).includes(search.value.trim())) continue;
-                    const b = btn(title,()=>{
-                        if(generation !== chatGeneration || !active || busy){close();return;}
-                        if(input.value.trim() && !confirm('متن فعلی با متن آماده جایگزین شود؟')) return;
-                        input.value = body+'\n\nICA | IRAN CHANGE ARZ';
-                        close(); input.focus();
-                    },list);
-                    node('small',body,b);
+                for(const row of saved.filter(r=>r.category===group)){
+                    if(!(row.title+' '+row.body).includes(search.value.trim()))continue;
+                    const item=node('div',null,list);
+                    if(!all){const b=btn(row.title,()=>choose(row.body),item);node('small',row.body,b);}else{node('strong',row.title,item);node('p',row.body,item);}
+                    btn('ویرایش',()=>edit(row),item);
+                    btn('حذف',async()=>{if(saving || !confirm('این متن حذف شود؟'))return;saving=true;try{await api(endpoint,{action:'delete',id:row.id});await load();}catch(e){status.textContent=e.message;}finally{saving=false;}},item);
+                }
+                if(!all)for(const [title,body] of templates[group]){
+                    if(!(title+' '+body).includes(search.value.trim()))continue;
+                    const b=btn(title,()=>choose(body+'\n\nICA | IRAN CHANGE ARZ'),list);node('small',body,b);
                 }
             }
-        };
-        search.oninput = draw; draw(); dialog.showModal();
+        }
+        async function load(){ready=false;add.disabled=true;status.textContent='در حال دریافت متون...';try{const result=await api(endpoint);if(!Array.isArray(result.templates))throw Error('پاسخ نامعتبر');saved=result.templates;ready=true;add.disabled=false;status.textContent='';}catch(e){status.textContent='خطا در دریافت متون: '+e.message;}draw();}
+        btn('به‌روزرسانی فهرست',()=>{if(!saving)load();},dialog);
+        search.oninput=draw;draw();dialog.showModal();load();
     },foot);
 
     if(!active){
