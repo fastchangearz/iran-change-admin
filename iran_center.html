@@ -36,8 +36,8 @@ form{display:grid;gap:12px}
 .candidate{padding:12px 4px;border-bottom:1px solid #344557}
 .assign-button{display:block;width:100%;margin-top:12px;background:linear-gradient(135deg,#f0d18b,#b58b43);color:#17212d;font-weight:bold}
 .success{color:#79e2ae;padding:10px 0}
- .ica-templates{width:min(92vw,480px);max-height:80dvh;overflow:auto;background:#142438;color:#eef3f8;border:1px solid #b58b43;border-radius:18px;padding:16px;direction:rtl} .ica-templates::backdrop{background:#0009} .ica-templates h3,.ica-templates h4{color:#e7c681} .ica-templates input{margin:12px 0} .ica-templates button{display:block;width:100%;text-align:right;margin:8px 0} .ica-templates small{line-height:1.8} footer button{white-space:nowrap;padding:8px} footer textarea{min-width:0}
- .compact .tc-head,.compact .tc-line{display:flex;align-items:center;gap:8px}.compact .tc-head strong,.compact .tc-line button:first-child{flex:1}.compact .tc-head button,.compact .tc-line button:last-child{width:42px;text-align:center}.compact .tc-line button{margin:2px 0;padding:10px;background:transparent;border:0}.compact .tc-line{border-bottom:1px solid #35445c}.compact input,.compact textarea{width:100%}.compact .tc-add{background:#d9b66b;color:#101010;text-align:center}</style>
+ footer button{white-space:nowrap;padding:8px} footer textarea{min-width:0}
+</style>
 
 <main>
 <header id="head">ایران چنج ارز | مرکز مدیریت</header>
@@ -737,50 +737,9 @@ async function openChat(t,label){
         }
     },foot);
 
-    const templates = {
-        'خریدار': [
-            ['آغاز معامله','درود و احترام. لطفاً تا اعلام مبلغ و مشخصات پرداخت توسط ادمین، از واریز وجه خودداری فرمایید.'],
-            ['اعلام مبلغ و کارمزد','لطفاً مبلغ ریالی و کارمزد اعلام‌شده برای این معامله را پیش از پرداخت بررسی و تأیید فرمایید.'],
-            ['درخواست رسید ریالی','لطفاً رسید واریز ریالی مربوط به همین معامله را ارسال فرمایید.'],
-            ['تأیید دریافت وجه','دریافت وجه ریالی معامله شما بررسی و تأیید شد. لطفاً منتظر هماهنگی انتقال ارز باشید.'],
-            ['تأیید دریافت ارز','لطفاً پس از بررسی حساب مقصد، دریافت کامل ارز را تأیید فرمایید.']
-        ],
-        'فروشنده': [
-            ['آغاز معامله','درود و احترام. لطفاً تا تأیید دریافت وجه ریالی از سوی ادمین، از انتقال ارز خودداری فرمایید.'],
-            ['انتظار واریز خریدار','در انتظار دریافت و بررسی وجه ریالی خریدار هستیم. لطفاً فعلاً ارز را منتقل نکنید.'],
-            ['درخواست انتقال ارز','دریافت وجه ریالی خریدار تأیید شد. لطفاً پس از بررسی مشخصات مقصد اعلام‌شده، ارز را منتقل فرمایید.'],
-            ['درخواست رسید ارزی','لطفاً رسید انتقال ارز مربوط به همین معامله را ارسال فرمایید.'],
-            ['تسویه ریالی','تسویه ریالی پس از بررسی تحویل ارز انجام خواهد شد.']
-        ],
-        'مشترک': [
-            ['در انتظار بررسی','درخواست شما در حال بررسی است. نتیجه پس از بررسی اطلاع‌رسانی خواهد شد.'],
-            ['رفع مغایرت','لطفاً تا رفع مغایرت و اعلام نتیجه از سوی ادمین، از پرداخت یا انتقال مجدد خودداری فرمایید.'],
-            ['تکمیل معامله','تکمیل معامله شما تأیید شد. از همراهی شما با ایران چنج ارز سپاسگزاریم.'],
-            ['لغو معامله','لغو معامله تأیید شد. در صورت وجود وجه یا ارز منتقل‌شده، وضعیت بازگشت آن جداگانه بررسی و اطلاع‌رسانی خواهد شد.']
-        ]
-    };
-    const template = btn('متون آماده',()=>{
-        if(!active || busy || generation !== chatGeneration || !['خریدار','فروشنده'].includes(label)) return;
-        const d=node('dialog',null,document.body); d.className='ica-templates compact';
-        d.addEventListener('close',()=>d.remove(),{once:true});
-        const head=node('div',null,d);head.className='tc-head';node('strong','متون '+label,head);btn('×',()=>d.close(),head);
-        const q=node('input',null,d);q.placeholder='جستجوی متن';
-        const status=node('div','',d), list=node('div',null,d), panel=node('div',null,d);
-        const add=btn('＋ افزودن متن',()=>edit(null),d);add.className='tc-add';
-        const endpoint='/center/api/templates';let rows=[],locked=false;
-        function choose(r){if(generation!==chatGeneration||!active||busy)return;if(input.value.trim()&&!confirm('متن فعلی جایگزین شود؟'))return;input.value=r.body;d.close();input.focus();}
-        async function mutate(data){if(locked)return;locked=true;try{await api(endpoint,data);panel.replaceChildren();await load();}catch(e){status.textContent=e.message;}finally{locked=false;}}
-        function edit(r){panel.replaceChildren();const t=node('input',null,panel);t.placeholder='عنوان';t.maxLength=120;t.value=r?.title||'';const v=node('textarea',null,panel);v.placeholder='متن پیام';v.rows=5;v.maxLength=4000;v.value=r?.body||'';btn('ذخیره',()=>{if(t.value.trim()&&v.value.trim())mutate({action:r?'update':'create',id:r?.id,category:label,title:t.value.trim(),body:v.value.trim()});},panel);btn('انصراف',()=>panel.replaceChildren(),panel);t.focus();}
-        function menu(r){panel.replaceChildren();node('strong',r.title,panel);btn('ویرایش',()=>edit(r),panel);btn('کپی',async()=>{try{await navigator.clipboard.writeText(r.body);panel.replaceChildren();}catch(e){status.textContent='کپی انجام نشد';}},panel);btn(r.position<0?'برداشتن سنجاق':'سنجاق کردن',()=>mutate({action:'update',id:r.id,category:label,title:r.title,body:r.body,position:r.position<0?0:-1}),panel);btn('حذف',()=>{if(confirm('متن حذف شود؟'))mutate({action:'delete',id:r.id});},panel);btn('بستن',()=>panel.replaceChildren(),panel);}
-        function draw(){list.replaceChildren();for(const r of rows.filter(r=>(r.title+' '+r.body).includes(q.value.trim()))){const line=node('div',null,list);line.className='tc-line';let timer,held=false;const pick=btn((r.position<0?'📌 ':'')+r.title,()=>{if(!held)choose(r);held=false;},line);pick.onpointerdown=()=>{held=false;timer=setTimeout(()=>{held=true;menu(r)},550)};pick.onpointerup=pick.onpointercancel=pick.onpointerleave=()=>clearTimeout(timer);pick.oncontextmenu=e=>{e.preventDefault();clearTimeout(timer);held=true;menu(r)};btn('⋮',()=>menu(r),line);}}
-        async function load(){add.disabled=true;try{const x=await api(endpoint);rows=x.templates.filter(r=>r.category===label);status.textContent='';draw();add.disabled=false;}catch(e){status.textContent=e.message;}}
-        q.oninput=draw;d.showModal();load();
-    },foot);
-
     if(!active){
         input.disabled = true;
         send.disabled = true;
-        template.disabled = true;
     }
 
     let refreshing = false;
