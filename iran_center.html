@@ -710,8 +710,24 @@ async function openChat(t,label){
 
     const active = selected.status === 'active';
 
+    const picker = node('input',null,foot);
+    picker.type='file'; picker.accept='image/jpeg,image/png'; picker.multiple=true; picker.hidden=true;
+    const attach=btn('📎',()=>picker.click(),foot); attach.disabled=!active; attach.title='انتخاب عکس';
+    const preview=node('div',null,root); preview.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
+    let photos=[];
+    function showPreview(){
+        preview.replaceChildren();
+        for(const f of photos){
+            const item=node('div',null,preview); const im=node('img',null,item);
+            const u=URL.createObjectURL(f); im.onload=im.onerror=()=>URL.revokeObjectURL(u); im.src=u; im.style.cssText='width:80px;height:80px;object-fit:cover';
+            btn('×',()=>{if(!busy){photos=photos.filter(x=>x!==f);showPreview();}},item);
+        }
+        input.maxLength=photos.length?1024:4000;
+        input.placeholder=photos.length?'توضیح عکس (اختیاری)':'نوشتن پیام...';
+    }
+    picker.onchange=()=>{if(busy)return; for(const f of picker.files){if(f.size<=10*1024*1024 && ['image/jpeg','image/png'].includes(f.type))photos.push(f);else err('فقط JPG یا PNG تا ۱۰ مگابایت');} picker.value='';showPreview();};
     const send = btn('ارسال',async()=>{
-        if(!active || busy || !input.value.trim()) return;
+        if(!active || busy || (!input.value.trim() && !photos.length)) return;
 
         busy = true;
         send.disabled = true;
@@ -719,7 +735,15 @@ async function openChat(t,label){
         const g = generation;
 
         try{
-            await api('/admin/minichat/send',{
+            if(photos.length){
+                if(input.value.trim().length>1024) throw Error('توضیح حداکثر ۱۰۲۴ نویسه');
+                while(photos.length){
+                    const form=new FormData(); form.append('thread_id',t.thread_id); form.append('caption',input.value.trim()); form.append('file',photos[0]);
+                    const r=await fetch('/center/api/photo',{method:'POST',headers:{Authorization:'Bearer '+token},body:form,cache:'no-store'});
+                    const j=await r.json(); if(!r.ok)throw Error(j.error||'ارسال تأیید نشد');
+                    photos.shift();showPreview(); if(g!==generation)break;
+                }
+            }else await api('/admin/minichat/send',{
                 thread_id:t.thread_id,
                 message_text:input.value.trim()
             });
@@ -803,6 +827,13 @@ async function openChat(t,label){
                     area
                 );
 
+                if(m.message_type==='file' && m.file_reference?.startsWith('business-photos/')){
+                    const im=node('img',null,b); im.style.cssText='display:block;max-width:100%;max-height:240px;cursor:zoom-in'; im.alt='عکس پیوست';
+                    fetch('/admin/minichat/files/'+m.message_id,{headers:{Authorization:'Bearer '+token},cache:'no-store'}).then(r=>{if(!r.ok)throw Error('عکس در دسترس نیست');return r.blob();}).then(blob=>{
+                        if(!im.isConnected)return; const u=URL.createObjectURL(blob); im.onload=im.onerror=()=>URL.revokeObjectURL(u); im.src=u;
+                        im.onclick=()=>{const d=node('dialog',null,document.body);d.style.cssText='background:#101b28;border:0;max-width:100%;max-height:100%;padding:8px';const full=node('img',null,d);const v=URL.createObjectURL(blob);full.src=v;full.style.cssText='max-width:90vw;max-height:80vh;object-fit:contain';btn('بستن',()=>d.close(),d);d.onclose=()=>{URL.revokeObjectURL(v);d.remove();};d.showModal();};
+                    }).catch(()=>{im.alt='عکس در دسترس نیست';});
+                }
                 b.className =
                     'bubble'+
                     (m.sender_role === 'admin' ? ' mine' : '');

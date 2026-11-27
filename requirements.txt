@@ -3,3 +3,5 @@ gunicorn>=22.0,<24.0
 requests>=2.31,<3.0
 argon2-cffi>=23.1,<26.0
 cryptography>=44.0,<47.0
+
+Pillow>=11,<13

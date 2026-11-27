@@ -2,6 +2,9 @@ from pathlib import Path
 from flask import request, jsonify, send_file
 from iran_staff_routes import authenticated_manager
 import requests
+import os, uuid, io
+from PIL import Image
+from urllib.parse import quote
 
 
 def install_center(app, db):
@@ -150,6 +153,50 @@ def install_center(app, db):
                 error='Database unavailable'
             ), 503
 
+    @app.post('/center/api/photo')
+    def center_photo():
+        account, token = authenticated_manager()
+        if not account or not token:
+            return jsonify(error='Unauthorized'), 401
+        if account.get('role') != 'manager':
+            return jsonify(error='Forbidden'), 403
+        if request.content_length and request.content_length > 11 * 1024 * 1024:
+            return jsonify(error='File too large'), 413
+        try:
+            tid = int(request.form.get('thread_id', '0'))
+            caption = request.form.get('caption', '').strip()
+            f = request.files.get('file')
+            if tid <= 0 or not f or len(caption) > 1024:
+                return jsonify(error='Invalid photo or caption'), 400
+            raw = f.stream.read(10 * 1024 * 1024 + 1)
+            if len(raw) > 10 * 1024 * 1024:
+                return jsonify(error='File too large'), 413
+            try:
+                with Image.open(io.BytesIO(raw)) as im:
+                    if im.format not in ('JPEG', 'PNG') or im.width * im.height > 25000000 or im.width + im.height > 10000 or max(im.size) > 20 * min(im.size):
+                        return jsonify(error='Unsupported image dimensions or format'), 400
+                    im.verify()
+                    ext = 'jpg' if im.format == 'JPEG' else 'png'
+            except Exception:
+                return jsonify(error='Invalid image'), 400
+            ts = db('GET','iran_chat_threads',{'select':'*','thread_id':f'eq.{tid}','limit':1})
+            if not ts: return jsonify(error='Thread not found'),404
+            t = ts[0]
+            aa = db('GET','iran_chat_agreements',{'select':'*','agreement_id':f"eq.{t['agreement_id']}",'limit':1})
+            role = t['participant_role']
+            if not aa or aa[0]['status'] != 'active' or role not in ('owner','proposer') or aa[0][role+'_id'] != t['participant_id'] or t['telegram_chat_id'] != t['participant_id'] or not t['business_connection_id']:
+                return jsonify(error='No verified business recipient'),409
+            path = f"business-photos/{tid}/{uuid.uuid4().hex}.{ext}"
+            url = os.environ['SUPABASE_URL'].rstrip('/') + '/storage/v1/object/iran-change-documents/' + quote(path,safe='/')
+            key = os.environ['SUPABASE_SERVICE_ROLE_KEY']
+            headers = {'apikey':key,'Authorization':'Bearer '+key,'Content-Type':'image/jpeg' if ext=='jpg' else 'image/png','x-upsert':'false'}
+            requests.post(url,headers=headers,data=raw,timeout=(10,30)).raise_for_status()
+            rows = db('POST','iran_chat_messages',payload=[dict(thread_id=tid,sender_role='admin',message_type='file',message_text=caption or 'عکس',file_reference=path,business_connection_id=t['business_connection_id'],telegram_chat_id=t['telegram_chat_id'],delivery_status='pending_v2')],prefer='return=representation')
+            return jsonify(message=rows[0]),201
+        except Exception:
+            app.logger.exception('Center photo failed')
+            return jsonify(error='Photo not confirmed; check history before retry'),503
+
     @app.get('/center/api/messages/<int:thread_id>')
     def messages(thread_id):
 
@@ -166,7 +213,7 @@ def install_center(app, db):
             q = {
                 'select': (
                     'message_id,sender_role,message_type,'
-                    'message_text,created_at,delivery_status,delivery_error'
+                    'message_text,created_at,delivery_status,delivery_error,file_reference'
                 ),
                 'thread_id': f'eq.{thread_id}',
                 'order': 'message_id.desc',

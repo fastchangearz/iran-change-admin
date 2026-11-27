@@ -1,4 +1,6 @@
 import requests
+import os, base64
+from urllib.parse import quote
 from flask import request, jsonify
 
 
@@ -325,6 +327,24 @@ def install_business_routes(app, db, authorized):
             if (a['status'] != 'active' or role not in ('owner','proposer') or a[role+'_id'] != t['participant_id'] or t['participant_id'] != m['telegram_chat_id'] or t['telegram_chat_id'] != m['telegram_chat_id'] or not m['business_connection_id'] or t['business_connection_id'] != m['business_connection_id']):
                 db('PATCH','iran_chat_messages',{'message_id':f"eq.{m['message_id']}"},{'delivery_status':'failed','delivery_error':'Recipient or agreement invalid'})
                 return jsonify(message=None)
+            if m.get('message_type') == 'file':
+                path = m.get('file_reference') or ''
+                if not path.startswith(f"business-photos/{m['thread_id']}/") or '..' in path or not path.endswith(('.jpg','.png')):
+                    db('PATCH','iran_chat_messages',{'message_id':f"eq.{m['message_id']}"},{'delivery_status':'failed','delivery_error':'Invalid photo reference'})
+                    return jsonify(message=None)
+                try:
+                    key = os.environ['SUPABASE_SERVICE_ROLE_KEY']
+                    url = os.environ['SUPABASE_URL'].rstrip('/')+'/storage/v1/object/iran-change-documents/'+quote(path,safe='/')
+                    with requests.get(url,headers={'apikey':key,'Authorization':'Bearer '+key},stream=True,timeout=(5,10)) as r:
+                        r.raise_for_status()
+                        raw = bytearray()
+                        for chunk in r.iter_content(65536):
+                            raw.extend(chunk)
+                            if len(raw)>10*1024*1024: raise ValueError('Photo too large')
+                    m['photo_base64'] = base64.b64encode(raw).decode('ascii')
+                except Exception:
+                    db('PATCH','iran_chat_messages',{'message_id':f"eq.{m['message_id']}"},{'delivery_status':'failed','delivery_error':'Photo storage unavailable'})
+                    return jsonify(message=None)
             return jsonify(message=m)
         except Exception:
             app.logger.exception('Outgoing claim failed')
