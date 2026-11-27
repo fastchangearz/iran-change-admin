@@ -36,6 +36,7 @@ form{display:grid;gap:12px}
 .candidate{padding:12px 4px;border-bottom:1px solid #344557}
 .assign-button{display:block;width:100%;margin-top:12px;background:linear-gradient(135deg,#f0d18b,#b58b43);color:#17212d;font-weight:bold}
 .success{color:#79e2ae;padding:10px 0}
+ .ica-templates{width:min(92vw,480px);max-height:80dvh;overflow:auto;background:#142438;color:#eef3f8;border:1px solid #b58b43;border-radius:18px;padding:16px;direction:rtl} .ica-templates::backdrop{background:#0009} .ica-templates h3,.ica-templates h4{color:#e7c681} .ica-templates input{margin:12px 0} .ica-templates button{display:block;width:100%;text-align:right;margin:8px 0} .ica-templates small{line-height:1.8} footer button{white-space:nowrap;padding:8px} footer textarea{min-width:0}
 </style>
 
 <main>
@@ -736,8 +737,56 @@ async function openChat(t,label){
         }
     },foot);
 
-    const template = btn('متن آماده',()=>{
-        input.value = 'لطفاً رسید پرداخت را ارسال کنید.';
+    const templates = {
+        'خریدار': [
+            ['آغاز معامله','درود و احترام. لطفاً تا اعلام مبلغ و مشخصات پرداخت توسط ادمین، از واریز وجه خودداری فرمایید.'],
+            ['اعلام مبلغ و کارمزد','لطفاً مبلغ ریالی و کارمزد اعلام‌شده برای این معامله را پیش از پرداخت بررسی و تأیید فرمایید.'],
+            ['درخواست رسید ریالی','لطفاً رسید واریز ریالی مربوط به همین معامله را ارسال فرمایید.'],
+            ['تأیید دریافت وجه','دریافت وجه ریالی معامله شما بررسی و تأیید شد. لطفاً منتظر هماهنگی انتقال ارز باشید.'],
+            ['تأیید دریافت ارز','لطفاً پس از بررسی حساب مقصد، دریافت کامل ارز را تأیید فرمایید.']
+        ],
+        'فروشنده': [
+            ['آغاز معامله','درود و احترام. لطفاً تا تأیید دریافت وجه ریالی از سوی ادمین، از انتقال ارز خودداری فرمایید.'],
+            ['انتظار واریز خریدار','در انتظار دریافت و بررسی وجه ریالی خریدار هستیم. لطفاً فعلاً ارز را منتقل نکنید.'],
+            ['درخواست انتقال ارز','دریافت وجه ریالی خریدار تأیید شد. لطفاً پس از بررسی مشخصات مقصد اعلام‌شده، ارز را منتقل فرمایید.'],
+            ['درخواست رسید ارزی','لطفاً رسید انتقال ارز مربوط به همین معامله را ارسال فرمایید.'],
+            ['تسویه ریالی','تسویه ریالی پس از بررسی تحویل ارز انجام خواهد شد.']
+        ],
+        'مشترک': [
+            ['در انتظار بررسی','درخواست شما در حال بررسی است. نتیجه پس از بررسی اطلاع‌رسانی خواهد شد.'],
+            ['رفع مغایرت','لطفاً تا رفع مغایرت و اعلام نتیجه از سوی ادمین، از پرداخت یا انتقال مجدد خودداری فرمایید.'],
+            ['تکمیل معامله','تکمیل معامله شما تأیید شد. از همراهی شما با ایران چنج ارز سپاسگزاریم.'],
+            ['لغو معامله','لغو معامله تأیید شد. در صورت وجود وجه یا ارز منتقل‌شده، وضعیت بازگشت آن جداگانه بررسی و اطلاع‌رسانی خواهد شد.']
+        ]
+    };
+    const template = btn('متون آماده',()=>{
+        if(!active || busy || generation !== chatGeneration) return;
+        const dialog = node('dialog',null,document.body);
+        dialog.className = 'ica-templates';
+        const close = ()=>dialog.close();
+        dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+        node('h3','متون آماده | '+label,dialog);
+        btn('بستن',close,dialog);
+        const search = node('input',null,dialog);
+        search.placeholder = 'جستجوی متن آماده';
+        const list = node('div',null,dialog);
+        const draw = ()=>{
+            list.replaceChildren();
+            for(const group of [label,'مشترک'].filter((v,i,a)=>a.indexOf(v)===i && templates[v])){
+                node('h4',group,list);
+                for(const [title,body] of templates[group]){
+                    if(!(title+' '+body).includes(search.value.trim())) continue;
+                    const b = btn(title,()=>{
+                        if(generation !== chatGeneration || !active || busy){close();return;}
+                        if(input.value.trim() && !confirm('متن فعلی با متن آماده جایگزین شود؟')) return;
+                        input.value = body+'\n\nICA | IRAN CHANGE ARZ';
+                        close(); input.focus();
+                    },list);
+                    node('small',body,b);
+                }
+            }
+        };
+        search.oninput = draw; draw(); dialog.showModal();
     },foot);
 
     if(!active){
