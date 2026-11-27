@@ -6,6 +6,46 @@ import requests
 
 def install_center(app, db):
 
+    @app.route('/center/api/templates', methods=['GET', 'POST'])
+    def center_templates():
+        from uuid import UUID
+        account, token = authenticated_manager()
+        if not account or not token:
+            return jsonify(error='Unauthorized'), 401
+        if account.get('role') != 'manager':
+            return jsonify(error='Forbidden'), 403
+        table = 'iran_center_templates'
+        try:
+            if request.method == 'GET':
+                return jsonify(templates=db('GET', table, {'select':'*','order':'position.asc,created_at.asc'}))
+            data = request.get_json(silent=True)
+            if not isinstance(data, dict):
+                return jsonify(error='Invalid data'), 400
+            action = data.get('action')
+            if action not in ('create','update','delete'):
+                return jsonify(error='Invalid action'), 400
+            filters = None
+            if action != 'create':
+                try:
+                    filters = {'id':'eq.' + str(UUID(str(data.get('id'))))}
+                except ValueError:
+                    return jsonify(error='Invalid ID'), 400
+            if action == 'delete':
+                rows = db('DELETE', table, filters, prefer='return=representation')
+            else:
+                category, title, body = (data.get(k) for k in ('category','title','body'))
+                if category not in ('خریدار','فروشنده','مشترک') or not isinstance(title,str) or not isinstance(body,str) or not 1 <= len(title.strip()) <= 120 or not 1 <= len(body.strip()) <= 4000:
+                    return jsonify(error='Invalid template'), 400
+                payload = dict(category=category,title=title.strip(),body=body.strip())
+                rows = db('POST' if action == 'create' else 'PATCH', table, filters, payload, 'return=representation')
+            if not rows:
+                return jsonify(error='Template not found'), 404
+            return jsonify(ok=True)
+        except Exception:
+            app.logger.exception('Center templates failed')
+            return jsonify(error='Database operation failed'), 503
+
+
     @app.get('/center-pwa/<name>')
     def center_pwa_asset(name):
         types = {'center.webmanifest': 'application/manifest+json',
